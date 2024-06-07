@@ -1,4 +1,13 @@
 const express = require('express');
+const {
+    getCategories,
+    getCategory,
+    createCategory,
+    updateCategory,
+    updateField,
+    updateTask,
+    deleteCategory
+} = require('../controllers/categoryController');
 
 const router = express.Router();
 
@@ -10,47 +19,29 @@ router.post('/case', (req, res) => {
 
 
 //Category Routes
-router.get('/category', (req, res) => {
-    res.json({ mssg: "GET category list" });
-});
-
-router.get('/category/:id', (req, res) => {
-    res.json({ mssg: "GET a single category" });
-});
-
-router.post('/category', (req, res) => {
-    res.json({ mssg: "Create a new category" });
-});
-
-router.patch('/category/:id', (req, res) => {
-    res.json({ mssg: "Update a category" });
-});
-
-router.delete('/category/:id', (req, res) => {
-    res.json({ mssg: "Delete a category" });
-});
+router.get('/getCategories', getCategories);
+router.get('/getCategory/:id', getCategory);
+router.post('/category', createCategory);
+router.patch('/updateCategory/:id', updateCategory);
+router.patch('/category/:categoryId/updateField/:fieldId', updateField)
+router.patch('/category/:categoryId/updateTask/:taskId', updateTask)
+router.delete('/deleteCategory/:id', deleteCategory);
 
 
-//Template Routes
-router.get('/template', (req, res) => {
-    res.json({ mssg: "GET template list" });
-});
+//Case template Routes
+// router.get('/template', getCaseTemplates);
+// router.get('/template/:id', getCaseTemplate);
+// router.post('/template', createCaseTemplate);
+// router.patch('/template/:id', updateCaseTemplate);
+// router.delete('/template/:id', deleteCaseTemplate);
 
-router.get('/template/:id', (req, res) => {
-    res.json({ mssg: "GET a single template" });
-});
 
-router.post('/template', (req, res) => {
-    res.json({ mssg: "Create a new template" });
-});
-
-router.patch('/template/:id', (req, res) => {
-    res.json({ mssg: "Update a template" });
-});
-
-router.delete('/template/:id', (req, res) => {
-    res.json({ mssg: "Delete a template" });
-});
+//Phase template Routes
+// router.get('/template/phase', getPhaseTemplates);
+// router.get('/template/phase/:id', getPhaseTemplate);
+// router.post('/template/phase', createPhaseTemplate);
+// router.patch('/template/phase/:id', updatePhaseTemplate);
+// router.delete('/template/phase/:id', deletePhaseTemplate);
 
 
 module.exports = router;

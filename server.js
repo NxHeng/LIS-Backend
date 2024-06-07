@@ -6,8 +6,10 @@ const createRoutes = require('./routes/create');
 
 //express app
 const app = express();
+const cors = require('cors');
 
 //middleware
+app.use(cors());
 app.use(express.json());
 app.use((req, res, next) => {
     console.log(req.path, req.method);
