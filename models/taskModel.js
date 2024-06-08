@@ -21,7 +21,7 @@ const taskSchema = new Schema({
     },
     status: {
         type: String,
-        default: 'Pending'
+        default: 'Awaiting Initiation'
     }
 }, { timestamps: true });
 
