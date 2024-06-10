@@ -100,6 +100,35 @@ const addTask = async (caseId, body) => {
     }
 }
 
+const updateCase = async (id, body) => {
+    try {
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            throw new Error('Invalid case ID');
+        }
+
+        const caseItem = await CaseModel.findById(id);
+        if (!caseItem) {
+            throw new Error('Case not found');
+        }
+
+        caseItem.matterName = body.matterName || caseItem.matterName;
+        caseItem.fileReference = body.fileReference || caseItem.fileReference;
+        caseItem.solicitorInCharge = body.solicitorInCharge || caseItem.solicitorInCharge;
+        caseItem.clerkInCharge = body.clerkInCharge || caseItem.clerkInCharge;
+        caseItem.clients = body.clients || caseItem.clients;
+        caseItem.category = body.category || caseItem.category;
+        caseItem.fields = body.fields || caseItem.fields;
+        caseItem.tasks = body.tasks || caseItem.tasks;
+        caseItem.status = body.status || caseItem.status;
+
+        await caseItem.save();
+        return caseItem;
+    } catch (error) {
+        console.error('Error updating case:', error);
+        throw new Error('Error updating case');
+    }
+}
+
 // update one of the task from a case
 const updateTask = async (caseId, taskId, body) => {
     try {
@@ -160,12 +189,11 @@ const deleteTask = async (caseId, taskId) => {
     }
 }
 
-
-
 module.exports = {
     getCases,
     getCase,
     createCase,
+    updateCase,
     addTask,
     updateTask,
     deleteTask

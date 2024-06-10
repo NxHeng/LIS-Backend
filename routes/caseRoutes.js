@@ -4,6 +4,7 @@ const {
     getCase,
     createCase,
     addTask,
+    updateCase,
     updateTask,
     deleteTask
 } = require('../controllers/caseController');
@@ -17,7 +18,7 @@ router.post('/createCase', createCase);
 router.post('/addTask/:caseId', addTask);
 router.patch('/updateTask/:caseId/:taskId', updateTask);
 router.delete('/deleteTask/:caseId/:taskId', deleteTask);
-// router.patch('/updateCase/:id', );
+router.patch('/updateCase/:id', updateCase);
 // router.delete('/deleteCase/:id', );
 
 module.exports = router;

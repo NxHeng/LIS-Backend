@@ -45,6 +45,21 @@ const addTask = async (req, res) => {
     }
 }
 
+const updateCase = async (req, res) => {
+    const { id } = req.params;
+    const caseData = req.body;
+    try {
+        if (!id) {
+            return res.status(400).send({ message: "Missing case ID" });
+        }
+        const updatedCase = await caseService.updateCase(id, caseData);
+        res.status(200).json(updatedCase);
+    } catch (error) {
+        console.error('Error updating case:', error);
+        res.status(500).send({ message: error.message });
+    }
+}
+
 // update one of the task from a case
 const updateTask = async (req, res) => {
     const { caseId, taskId } = req.params;
@@ -80,6 +95,7 @@ module.exports = {
     getCase,
     createCase,
     addTask,
+    updateCase,
     updateTask,
     deleteTask
 };
