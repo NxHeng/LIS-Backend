@@ -6,7 +6,7 @@ const userRoutes = require('./routes/userRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
 const caseRoutes = require('./routes/caseRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
-
+const announcementRoutes = require('./routes/announcementRoutes');
 
 //express app
 const app = express();
@@ -25,6 +25,7 @@ app.use('/user', userRoutes);
 app.use('/create', categoryRoutes);
 app.use('/case', caseRoutes);
 app.use('/dashboard', dashboardRoutes);
+app.use('/announcement', announcementRoutes);
 
 //connect to db
 mongoose.connect(process.env.MONGO_URI)

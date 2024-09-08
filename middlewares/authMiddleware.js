@@ -50,4 +50,17 @@ const authMiddleware = async (req, res, next) => {
     }
 };
 
+// // Middleware to check if user is admin
+// const adminMiddleware = async (req, res, next) => {
+//     try {
+//         if (req.user.role !== 'admin') {
+//             return res.status(403).json({ message: 'Admin access required' });
+//         }
+//         next();
+//     } catch (error) {
+//         console.error('Admin middleware error:', error.message);
+//         res.status(401).send({ error: 'Admin middleware failed', details: error.message });
+//     }
+// };
+
 module.exports = authMiddleware;

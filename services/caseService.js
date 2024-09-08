@@ -5,7 +5,33 @@ const CategoryModel = require('../models/categoryModel');
 // Get all categories
 const getCases = async () => {
     try {
-        const cases = await CaseModel.find({}).sort({ createdAt: -1 });
+        const cases = await CaseModel.find({})
+            .sort({ createdAt: -1 })
+            .populate('solicitorInCharge', 'username _id')
+            .populate('clerkInCharge', 'username _id')
+            .populate('category', 'categoryName _id')
+            .exec();
+
+        return cases;
+    } catch (error) {
+        throw new Error(error.message);
+    }
+};
+
+const getMyCases = async (id) => {
+    try {
+        const cases = await CaseModel.find({
+            $or: [
+                { solicitorInCharge: id },
+                { clerkInCharge: id }
+            ]
+        })
+            .sort({ createdAt: -1 })
+            .populate('solicitorInCharge', 'username _id')
+            .populate('clerkInCharge', 'username _id')
+            .populate('category', 'categoryName _id')
+            .exec();
+
         return cases;
     } catch (error) {
         throw new Error(error.message);
@@ -18,11 +44,21 @@ const getCase = async (id) => {
         throw new Error('Case not found');
     }
     // Find case by id
-    const caseItem = await CaseModel.findById(id);
-    if (!caseItem) {
-        throw new Error('Case not found');
+    try {
+        const caseItem = await CaseModel.findById(id)
+            .populate('solicitorInCharge', 'username _id')
+            .populate('clerkInCharge', 'username _id')
+            .populate('category', 'categoryName _id')
+            .exec();
+
+        if (!caseItem) {
+            throw new Error('Case not found');
+        }
+
+        return caseItem;
+    } catch (error) {
+        throw new Error(error.message);
     }
-    return caseItem;
 };
 
 const createCase = async (body) => {
@@ -38,8 +74,15 @@ const createCase = async (body) => {
         } = body;
         // check id format
         if (!mongoose.Types.ObjectId.isValid(categoryId)) {
-            throw new Error('Category not found');
+            throw new Error('Invalid category ID');
         }
+        if (!mongoose.Types.ObjectId.isValid(solicitorInCharge)) {
+            throw new Error('Invalid solicitor ID');
+        }
+        if (!mongoose.Types.ObjectId.isValid(clerkInCharge)) {
+            throw new Error('Invalid clerk ID');
+        }
+
         const category = await CategoryModel.findById(categoryId);
         if (!category) {
             throw new Error('Category not found');
@@ -167,6 +210,40 @@ const updateTask = async (caseId, taskId, body) => {
     }
 }
 
+const getTasksByStaff = async (userId) => {
+    try {
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+            throw new Error('Invalid user ID');
+        }
+        // Find all cases where the solicitorInCharge or clerkInCharge matches the given userId
+        const cases = await CaseModel.find({
+            $or: [
+                { solicitorInCharge: userId },
+                { clerkInCharge: userId }
+            ]
+        })
+        .populate('solicitorInCharge', 'username _id')
+        .populate('clerkInCharge', 'username _id')
+        .populate('category', 'categoryName _id')
+        .exec();
+
+        // Extract all tasks from the retrieved cases
+        const tasks = cases.reduce((acc, caseItem) => {
+            const caseTasks = caseItem.tasks.map(task => ({
+                ...task.toObject(),
+                caseId: caseItem._id // Attach the caseId to each task
+            }));
+            return acc.concat(caseTasks);
+        }, []);
+
+        return tasks;
+    } catch (error) {
+        throw new Error(error.message);
+    }
+};
+
+
+
 const deleteTask = async (caseId, taskId) => {
     try {
         if (!mongoose.Types.ObjectId.isValid(caseId)) {
@@ -191,10 +268,12 @@ const deleteTask = async (caseId, taskId) => {
 
 module.exports = {
     getCases,
+    getMyCases,
     getCase,
     createCase,
     updateCase,
     addTask,
     updateTask,
+    getTasksByStaff,
     deleteTask
 };

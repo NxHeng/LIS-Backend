@@ -14,11 +14,13 @@ const caseSchema = new Schema({
         required: true
     },
     solicitorInCharge: {
-        type: String,
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
         required: true
     },
     clerkInCharge: {
-        type: String,
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
         required: true
     },
     clients: {

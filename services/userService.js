@@ -73,6 +73,10 @@ const changePassword = async (userId, oldPassword, newPassword) => {
     return user;
 };
 
+// get list of users with id and name
+const getUserList = async () => {
+    return UserModel.find({}, { _id: 1, username: 1 });
+};
 
 
 
@@ -82,5 +86,6 @@ module.exports = {
     authenticateUser,
     getUserDetails,
     blacklistToken,
-    changePassword
+    changePassword,
+    getUserList,
 };

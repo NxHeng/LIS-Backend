@@ -10,6 +10,16 @@ const getCases = async (req, res) => {
     }
 };
 
+const getMyCases = async (req, res) => {
+    const id = req.params.id;
+    try {
+        const cases = await caseService.getMyCases(id);
+        res.status(200).json(cases);
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+}
+
 // Get a single case
 const getCase = async (req, res) => {
     const id = req.params.id;
@@ -76,6 +86,20 @@ const updateTask = async (req, res) => {
     }
 }
 
+const getTasksByStaff = async (req, res) => {
+    const { id } = req.params;
+    try {
+        if (!id) {
+            return res.status(400).send({ message: "Missing staff ID" });
+        }
+        const tasks = await caseService.getTasksByStaff(id);
+        res.status(200).json(tasks);
+    } catch (error) {
+        console.error('Error getting tasks:', error);
+        res.status(500).send({ message: error.message });
+    }
+}
+
 const deleteTask = async (req, res) => {
     const { caseId, taskId } = req.params;
     try {
@@ -92,10 +116,12 @@ const deleteTask = async (req, res) => {
 
 module.exports = {
     getCases,
+    getMyCases,
     getCase,
     createCase,
     addTask,
     updateCase,
     updateTask,
+    getTasksByStaff,
     deleteTask
 };

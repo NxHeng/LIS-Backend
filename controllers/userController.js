@@ -58,11 +58,22 @@ const changePassword = async (req, res) => {
     }
 };
 
+//get user list with id and name
+const getUserList = async (req, res) => {
+    try {
+        const users = await userService.getUserList();
+        res.status(200).send(users);
+    } catch (error) {
+        res.status(404).send({ message: error.message });
+    }
+};
+
 
 module.exports = {
     registerUser,
     loginUser,
     getUserProfile,
     logoutUser,
-    changePassword
+    changePassword,
+    getUserList
 };

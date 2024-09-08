@@ -9,4 +9,6 @@ router.get('/profile', authMiddleware, userController.getUserProfile);
 router.post('/logout', authMiddleware, userController.logoutUser);
 router.post('/changePassword', authMiddleware, userController.changePassword);
 
+router.get('/getUserList', userController.getUserList);
+
 module.exports = router;
