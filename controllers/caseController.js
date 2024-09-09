@@ -86,6 +86,24 @@ const updateTask = async (req, res) => {
     }
 }
 
+const updateTasksOrder = async (req, res) => {
+    const { caseId } = req.params;
+    const tasksData = req.body;
+    try {
+        if (!caseId) {
+            return res.status(400).send({ message: "Missing case ID" });
+        }
+        if (!tasksData || !Array.isArray(tasksData)) {
+            return res.status(400).json({ message: 'Invalid task data' });
+        }
+        const updatedTasks = await caseService.updateTasksOrder(caseId, tasksData);
+        res.status(200).json(updatedTasks);
+    } catch (error) {
+        console.error('Error updating tasks order:', error);
+        res.status(500).send({ message: error.message });
+    }
+}
+
 const getTasksByStaff = async (req, res) => {
     const { id } = req.params;
     try {
@@ -122,6 +140,7 @@ module.exports = {
     addTask,
     updateCase,
     updateTask,
+    updateTasksOrder,
     getTasksByStaff,
     deleteTask
 };

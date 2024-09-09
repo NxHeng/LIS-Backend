@@ -22,7 +22,11 @@ const taskSchema = new Schema({
     status: {
         type: String,
         default: 'Awaiting Initiation'
-    }
+    },
+    order: { 
+        type: Number, 
+        default: 0 
+    },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Task', taskSchema)

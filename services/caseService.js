@@ -12,7 +12,14 @@ const getCases = async () => {
             .populate('category', 'categoryName _id')
             .exec();
 
-        return cases;
+        const sortedTasksCases = cases.map(caseItem => {
+            caseItem.tasks = caseItem.tasks.sort((a, b) => a.order - b.order);
+            // Or, to sort by creation date:
+            // caseItem.tasks = caseItem.tasks.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+            return caseItem;
+        });
+
+        return sortedTasksCases;
     } catch (error) {
         throw new Error(error.message);
     }
@@ -32,7 +39,14 @@ const getMyCases = async (id) => {
             .populate('category', 'categoryName _id')
             .exec();
 
-        return cases;
+        const sortedTasksCases = cases.map(caseItem => {
+            caseItem.tasks = caseItem.tasks.sort((a, b) => a.order - b.order);
+            // Or, to sort by creation date:
+            // caseItem.tasks = caseItem.tasks.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+            return caseItem;
+        });
+
+        return sortedTasksCases;
     } catch (error) {
         throw new Error(error.message);
     }
@@ -50,6 +64,8 @@ const getCase = async (id) => {
             .populate('clerkInCharge', 'username _id')
             .populate('category', 'categoryName _id')
             .exec();
+
+        caseItem.tasks = caseItem.tasks.sort((a, b) => a.order - b.order);
 
         if (!caseItem) {
             throw new Error('Case not found');
@@ -132,7 +148,8 @@ const addTask = async (caseId, body) => {
             dueDate: body.dueDate ? new Date(body.dueDate) : null,
             reminder: body.reminder ? new Date(body.reminder) : null,
             remark: body.remark,
-            status: body.status || 'Awaiting Initiation'
+            status: body.status || 'Awaiting Initiation',
+            order: body.order || 0
         };
         caseDocument.tasks.push(newTask);
         await caseDocument.save();
@@ -199,6 +216,7 @@ const updateTask = async (caseId, taskId, body) => {
         task.reminder = body.reminder || task.reminder;
         task.remark = body.remark || task.remark;
         task.status = body.status || task.status;
+        task.order = body.order || task.order;
 
         // Save the case document to update the embedded task
         await caseDocument.save();
@@ -207,6 +225,29 @@ const updateTask = async (caseId, taskId, body) => {
     } catch (error) {
         console.error('Failed to update task:', error);
         throw new Error('Error updating task');
+    }
+}
+
+const updateTasksOrder = async (caseId, tasks) => {
+    try {
+        // Check if the case ID is valid
+        if (!mongoose.Types.ObjectId.isValid(caseId)) {
+            throw new Error('Invalid case ID');
+        }
+        const bulkOperations = tasks.map(task => ({
+            updateOne: {
+                filter: { 'tasks._id': task._id }, // Find the task by its _id
+                update: { 'tasks.$.order': task.order }, // Update the order
+            }
+        }));
+
+        // Execute bulkWrite operation on the CaseModel
+        const newOrderTasks = await CaseModel.bulkWrite(bulkOperations);
+        
+        return newOrderTasks;
+    } catch (error) {
+        console.error('Failed to update tasks order:', error);
+        throw new Error('Error updating tasks order');
     }
 }
 
@@ -222,10 +263,10 @@ const getTasksByStaff = async (userId) => {
                 { clerkInCharge: userId }
             ]
         })
-        .populate('solicitorInCharge', 'username _id')
-        .populate('clerkInCharge', 'username _id')
-        .populate('category', 'categoryName _id')
-        .exec();
+            .populate('solicitorInCharge', 'username _id')
+            .populate('clerkInCharge', 'username _id')
+            .populate('category', 'categoryName _id')
+            .exec();
 
         // Extract all tasks from the retrieved cases
         const tasks = cases.reduce((acc, caseItem) => {
@@ -272,6 +313,7 @@ module.exports = {
     getCase,
     createCase,
     updateCase,
+    updateTasksOrder,
     addTask,
     updateTask,
     getTasksByStaff,
