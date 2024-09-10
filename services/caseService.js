@@ -272,7 +272,9 @@ const getTasksByStaff = async (userId) => {
         const tasks = cases.reduce((acc, caseItem) => {
             const caseTasks = caseItem.tasks.map(task => ({
                 ...task.toObject(),
-                caseId: caseItem._id // Attach the caseId to each task
+                caseId: caseItem._id, // Attach the caseId to each task
+                clients: caseItem.clients, // Attach the clients to each task
+                matterName: caseItem.matterName, // Attach the matterName to each task
             }));
             return acc.concat(caseTasks);
         }, []);
