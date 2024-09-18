@@ -9,15 +9,19 @@ const taskSchema = new Schema({
     },
     initiationDate: {
         type: Date,
+        default: null,
     },
     dueDate: {
         type: Date,
+        default: null,
     },
     reminder: {
         type: Date,
+        default: null,
     },
     remark: {
-        type: String
+        type: String,
+        default: null,
     },
     status: {
         type: String,
