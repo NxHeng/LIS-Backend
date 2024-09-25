@@ -5,7 +5,8 @@ const Schema = mongoose.Schema;
 const folderSchema = new Schema({
     folderName: {
         type: String,
-        required: true
+        required: true,
+        default: 'New Folder'
     },
     parentFolderId: {
         type: mongoose.Schema.Types.ObjectId,
@@ -21,6 +22,10 @@ const folderSchema = new Schema({
         ref: 'Case',
         required: true
     }, // Associated case
+    createdAt: {
+        type: Date,
+        default: Date.now
+    }
 });
 
 // Export models

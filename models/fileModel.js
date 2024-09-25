@@ -3,6 +3,10 @@ const Schema = mongoose.Schema;
 
 // File Schema
 const fileSchema = new Schema({
+    fileURI: {
+        type: String,
+        required: true
+    }, // Unique identifier for the file
     fileName: {
         type: String,
         required: true
