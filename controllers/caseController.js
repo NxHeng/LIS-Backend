@@ -1,4 +1,5 @@
 const caseService = require('../services/caseService');
+const notificationService = require('../services/notificationService');
 
 // Get all cases
 const getCases = async (req, res) => {
@@ -34,6 +35,19 @@ const getCase = async (req, res) => {
 const createCase = async (req, res) => {
     try {
         const caseItem = await caseService.createCase(req.body);
+
+        // Notify solicitor and clerk
+        const { solicitorInCharge, clerkInCharge, matterName } = caseItem;
+        const usersNotified = [solicitorInCharge, clerkInCharge];
+
+        // console.log("req.io:", req.io)
+        await notificationService.createAndEmitNotification(req.io, {
+            type: 'new_case',
+            message: `New case "${matterName}" has been created!`,
+            caseId: caseItem,
+            usersNotified
+        });
+
         res.status(201).json(caseItem);
     } catch (error) {
         res.status(400).json({ error: error.message });
@@ -62,7 +76,27 @@ const updateCase = async (req, res) => {
         if (!id) {
             return res.status(400).send({ message: "Missing case ID" });
         }
-        const updatedCase = await caseService.updateCase(id, caseData);
+        const { updatedCase, originalStatus } = await caseService.updateCase(id, caseData);
+
+        // Notify solicitor and clerk of the case update
+        const { solicitorInCharge, clerkInCharge, matterName, status } = updatedCase;
+        const usersNotified = [solicitorInCharge, clerkInCharge];
+        let notificationType = 'detail_update';
+        let notificationMessage = `Details for case "${matterName}" have been updated!`;
+
+        // Check if the status changed to 'closed'
+        if (status !== originalStatus && status === 'closed') {
+            notificationType = 'status_change';
+            notificationMessage = `Case "${matterName}" has been closed!`;
+        }
+
+        await notificationService.createAndEmitNotification(req.io, {
+            type: notificationType,
+            message: notificationMessage,
+            caseId: updatedCase,
+            usersNotified
+        });
+
         res.status(200).json(updatedCase);
     } catch (error) {
         console.error('Error updating case:', error);

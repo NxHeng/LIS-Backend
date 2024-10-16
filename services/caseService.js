@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const CaseModel = require('../models/caseModel');
 const CategoryModel = require('../models/categoryModel');
+const Task = require('../models/taskModel');
 
 // Get all categories
 const getCases = async () => {
@@ -171,6 +172,8 @@ const updateCase = async (id, body) => {
             throw new Error('Case not found');
         }
 
+        const originalStatus = caseItem.status; // Save original status before update
+
         caseItem.matterName = body.matterName || caseItem.matterName;
         caseItem.fileReference = body.fileReference || caseItem.fileReference;
         caseItem.solicitorInCharge = body.solicitorInCharge || caseItem.solicitorInCharge;
@@ -182,7 +185,7 @@ const updateCase = async (id, body) => {
         caseItem.status = body.status || caseItem.status;
 
         await caseItem.save();
-        return caseItem;
+        return { updatedCase: caseItem, originalStatus };
     } catch (error) {
         console.error('Error updating case:', error);
         throw new Error('Error updating case');
@@ -243,7 +246,7 @@ const updateTasksOrder = async (caseId, tasks) => {
 
         // Execute bulkWrite operation on the CaseModel
         const newOrderTasks = await CaseModel.bulkWrite(bulkOperations);
-        
+
         return newOrderTasks;
     } catch (error) {
         console.error('Failed to update tasks order:', error);
@@ -308,6 +311,39 @@ const deleteTask = async (caseId, taskId) => {
         throw new Error('Error deleting task');
     }
 }
+
+// const checkTaskDueDates = async () => {
+//     const currentDate = new Date();
+
+//     // Find all cases that have tasks
+//     const cases = await CaseModel.find({ "tasks.dueDate": { $exists: true } });
+
+//     cases.forEach(caseDocument => {
+//         caseDocument.tasks.forEach(async (task) => {
+//             // Check if the task is due within the next 24 hours and has not been notified yet
+//             if (task.dueDate && task.dueDate <= new Date(currentDate.getTime() + 24 * 60 * 60 * 1000)) {
+
+//                 // Example: Send notification only if task status is 'Awaiting Initiation' (or define other logic)
+//                 if (task.status === 'Pending') {
+//                     emitNotification(`Task "${task.description}" for case "${caseDocument._id}" is due soon!`);
+
+//                     // Optionally update task status or any other logic
+//                     // task.status = 'Due Soon';
+//                 }
+//             }
+//         });
+
+//         // Save the updated case with modified task statuses if needed
+//         caseDocument.markModified('tasks'); // Mark the tasks array as modified for Mongoose
+//         caseDocument.save();
+//     });
+// };
+
+// Schedule the cron job to run every minute
+// cron.schedule('* * * * *', () => {
+//     console.log('Checking task due dates within case documents...');
+//     checkTaskDueDates();
+// });
 
 module.exports = {
     getCases,

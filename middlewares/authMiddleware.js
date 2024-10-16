@@ -5,7 +5,7 @@ const UserModel = require('../models/UserModel');
 const authMiddleware = async (req, res, next) => {
     try {
         const authHeader = req.header('Authorization');
-        console.log('Authorization Header:', authHeader);
+        // console.log('Authorization Header:', authHeader);
 
         if (!authHeader) {
             console.error('No Authorization header found');
@@ -13,7 +13,7 @@ const authMiddleware = async (req, res, next) => {
         }
 
         const token = authHeader.replace('Bearer ', '');
-        console.log('Token:', token);
+        // console.log('Token:', token);
 
         if (!token) {
             console.error('Malformed authentication token');
@@ -27,7 +27,7 @@ const authMiddleware = async (req, res, next) => {
         }
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        console.log('Decoded Token:', decoded);
+        // console.log('Decoded Token:', decoded);
 
         if (!decoded || !decoded.id) {
             console.error('Invalid token');
@@ -35,7 +35,7 @@ const authMiddleware = async (req, res, next) => {
         }
 
         const user = await UserModel.findById(decoded.id);
-        console.log('User:', user);
+        // console.log('User:', user);
 
         if (!user) {
             console.error('User not found');
