@@ -14,7 +14,7 @@ const announcementRoutes = require('./routes/announcementRoutes');
 const documentRoutes = require('./routes/documentRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 
-const { taskNotificationJob } = require('./cron/cronJobs');
+const { initializeCronJob } = require('./cron/cronJobs');
 
 //express app
 const cors = require('cors');
@@ -47,11 +47,11 @@ app.use('/announcement', announcementRoutes);
 app.use('/document', documentRoutes);
 app.use('/notification', notificationRoutes);
 
-// Start the cron job
-taskNotificationJob.start();
-
-// Initialize socket.io
+// After socket setup
 socketUtils.setupIo(io);
+
+// Initialize the cron job with the io instance
+initializeCronJob(io);
 
 
 //connect to db

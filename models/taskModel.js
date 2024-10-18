@@ -27,9 +27,17 @@ const taskSchema = new Schema({
         type: String,
         default: 'Awaiting Initiation'
     },
-    order: { 
-        type: Number, 
-        default: 0 
+    order: {
+        type: Number,
+        default: 0
+    },
+    dueDateNotificationSent: {
+        type: Boolean,
+        default: false
+    },
+    reminderNotificationSent: {
+        type: Boolean,
+        default: false
     },
 }, { timestamps: true });
 

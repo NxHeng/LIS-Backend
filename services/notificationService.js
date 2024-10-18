@@ -30,7 +30,6 @@ const getNotificationsForUser = async (userId) => {
         // Optional: Add pagination or limit results if necessary
         const notifications = await Notification.find({ usersNotified: userId })
         .sort({ createdAt: -1 })
-        .populate('taskId')
         .populate('caseId');
         return notifications;
     } catch (error) {
