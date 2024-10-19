@@ -114,6 +114,14 @@ const createCase = async (body) => {
             };
         });
 
+        // Create new tasks with unique IDs
+        const tasks = category.tasks.map(task => {
+            return {
+                ...task.toObject(),  // Copy the task object
+                _id: new mongoose.Types.ObjectId(),  // Generate a new unique ObjectId
+            };
+        });
+
         const newCase = new CaseModel({
             matterName,
             fileReference,
@@ -122,7 +130,7 @@ const createCase = async (body) => {
             clients,
             category: categoryId,
             fields: fields,
-            tasks: category.tasks
+            tasks: tasks
         });
         const caseItem = await newCase.save();
         return caseItem;
