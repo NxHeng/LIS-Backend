@@ -18,8 +18,8 @@ const UserSchema = new mongoose.Schema({
     },
     role: {
         type: String,
-        enum: ['Solicitor', 'Clerk', 'Admin'],
-        default: 'Clerk', // Setting default role to 'Clerk'
+        enum: ['solicitor', 'clerk', 'admin', 'pending', 'rejected'],
+        default: 'pending', // Setting default role to 'Clerk'
         required: true,
     }
 });

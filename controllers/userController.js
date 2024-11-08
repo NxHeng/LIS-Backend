@@ -17,7 +17,7 @@ const loginUser = async (req, res) => {
         if (authResponse.success) {
             res.json({ token: authResponse.token, user: authResponse.user });
         } else {
-            res.status(400).send(authResponse.message);
+            res.status(400).json({ message: authResponse.message });
         }
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
@@ -68,6 +68,26 @@ const getUserList = async (req, res) => {
     }
 };
 
+const updateRole = async (req, res) => {
+    const { userId, role } = req.body;
+    try {
+        const user = await userService.updateRole(userId, role);
+        res.status(200).send(user);
+    } catch (error) {
+        res.status(404).send({ message: error.message });
+    }
+};
+
+const deleteUser = async (req, res) => {
+    const { userId } = req.body;
+    try {
+        await userService.deleteUser(userId);
+        res.status(200).send('User deleted successfully');
+    } catch (error) {
+        res.status(404).send({ message: error.message });
+    }
+};
+
 
 module.exports = {
     registerUser,
@@ -75,5 +95,7 @@ module.exports = {
     getUserProfile,
     logoutUser,
     changePassword,
-    getUserList
+    getUserList,
+    updateRole,
+    deleteUser
 };

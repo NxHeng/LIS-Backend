@@ -14,6 +14,14 @@ const authenticateUser = async (email, password) => {
         return { success: false, message: 'User not found' };
     }
 
+    if (user.role === 'pending' || user.role === 'rejected') {
+        if (user.role === 'pending') {
+            return { success: false, message: 'Account is pending approval' };
+        } else {
+            return { success: false, message: 'Account has been rejected' };
+        }
+    }
+
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
         return { success: false, message: 'Invalid password' };
@@ -75,11 +83,33 @@ const changePassword = async (userId, oldPassword, newPassword) => {
 
 // get list of users with id and name
 const getUserList = async () => {
-    return UserModel.find({}, { _id: 1, username: 1 });
+    return UserModel.find({}, { _id: 1, username: 1, email: 1, role: 1 });
 };
 
+const updateRole = async (userId, role) => {
+    const user = await UserModel.findById(userId);
+    if (!user) {
+        throw new Error('User not found');
+    }
 
+    user.role = role;
+    await user.save();
 
+    return user;
+};
+
+const deleteUser = async (userId) => {
+    try {
+        const user = await UserModel.findByIdAndDelete(userId);
+        if (!user) {
+            throw new Error('User not found');
+        }
+        return user;
+    }
+    catch (error) {
+        throw error;
+    }
+}
 
 module.exports = {
     createUser,
@@ -88,4 +118,6 @@ module.exports = {
     blacklistToken,
     changePassword,
     getUserList,
+    updateRole,
+    deleteUser
 };

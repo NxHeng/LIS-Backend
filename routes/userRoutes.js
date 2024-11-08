@@ -10,5 +10,7 @@ router.post('/logout', authMiddleware, userController.logoutUser);
 router.post('/changePassword', authMiddleware, userController.changePassword);
 
 router.get('/getUserList', userController.getUserList);
+router.patch('/updateRole', userController.updateRole);
+router.delete('/deleteUser', userController.deleteUser);
 
 module.exports = router;
