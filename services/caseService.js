@@ -106,14 +106,18 @@ const createCase = async (body) => {
         }
         // Map the field values to the template fields
         const fields = category.fields.map((templateField, index) => {
-            const value = fieldValues[index] || '';
+            const body = fieldValues[index] || '';
             return {
                 name: templateField.name,
                 type: templateField.type,
-                value: value // Include the value in the field object
+                value: body.value, 
+                remarks: body.remarks,
+                tel: body.tel,
+                email: body.email,
+                fax: body.fax
             };
         });
-
+        console.log('fields:', fields);
         // Create new tasks with unique IDs
         const tasks = category.tasks.map(task => {
             return {
@@ -133,6 +137,7 @@ const createCase = async (body) => {
             tasks: tasks
         });
         const caseItem = await newCase.save();
+        console.log('FINAL ---> caseItem:', caseItem);
         return caseItem;
     } catch (error) {
         throw new Error(error.message);

@@ -32,10 +32,7 @@ const caseSchema = new Schema({
         ref: 'Category',
         required: true
     },
-    fields: [{
-        name: String, // Name of the field
-        value: Schema.Types.Mixed // Dynamic value that can be of any type
-    }],
+    fields: [Field.schema],
     tasks: [Task.schema],
     status: {
         type: String,
