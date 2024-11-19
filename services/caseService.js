@@ -137,7 +137,6 @@ const createCase = async (body) => {
             tasks: tasks
         });
         const caseItem = await newCase.save();
-        console.log('FINAL ---> caseItem:', caseItem);
         return caseItem;
     } catch (error) {
         throw new Error(error.message);

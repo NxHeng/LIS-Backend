@@ -1,4 +1,6 @@
 const announcementService = require('../services/announcementService');
+const notificationService = require('../services/notificationService');
+const UserModel = require('../models/UserModel');
 
 // Get all announcements
 const getAnnouncements = async (req, res) => {
@@ -24,6 +26,21 @@ const getAnnouncement = async (req, res) => {
 const createAnnouncement = async (req, res) => {
     try {
         const announcement = await announcementService.createAnnouncement(req.body);
+
+        // Notify solicitor and clerk
+        const { title } = announcement;
+        // Fetch users with roles solicitor, clerk, or admin
+        const usersNotified = await UserModel.find({ role: { $in: ['solicitor', 'clerk', 'admin'] } }).select('_id');
+
+        // Extract user IDs from the result
+        const userIds = usersNotified.map(user => user._id);
+
+        await notificationService.createAndEmitAnnouncement(req.io, {
+            type: 'announcement',
+            message: title,
+            announcementId: announcement,
+            usersNotified: userIds, // Pass user IDs
+        });
         res.status(201).json(announcement);
     } catch (error) {
         res.status(400).json({ error: error.message });

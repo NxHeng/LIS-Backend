@@ -16,7 +16,12 @@ const notificationSchema = new Schema({
     caseId: { 
         type: mongoose.Schema.Types.ObjectId, 
         ref: 'Case', 
-        required: true 
+        required: false 
+    },
+    announcementId: { 
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: 'Announcement', 
+        default: null 
     },
     usersNotified: [{ 
         type: mongoose.Schema.Types.ObjectId, 
