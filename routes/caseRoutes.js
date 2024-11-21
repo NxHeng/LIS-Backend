@@ -9,6 +9,7 @@ const {
     updateTask,
     updateTasksOrder,
     getTasksByStaff,
+    // getTasksByClient,
     deleteTask
 } = require('../controllers/caseController');
 
@@ -26,5 +27,6 @@ router.get('/getTasksByStaff/:id', getTasksByStaff);
 router.delete('/deleteTask/:caseId/:taskId', deleteTask);
 router.patch('/updateCase/:id', updateCase);
 // router.delete('/deleteCase/:id', );
+// router.get('/getTasksByClient/:id', getTasksByClient);
 
 module.exports = router;

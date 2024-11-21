@@ -23,10 +23,28 @@ const caseSchema = new Schema({
         ref: 'User',
         required: true
     },
-    clients: {
-        type: [String], //
-        required: true
-    },
+    // clients: {
+    //     type: [String], //
+    //     required: true
+    // },
+    clients: [
+        {
+            name: {
+                type: String,
+                required: true
+            },
+            icNumber: {
+                type: String,
+                required: true,
+                // validate: {
+                //     validator: function (v) {
+                //         return /^\d{6}-\d{2}-\d{4}$/.test(v);
+                //     },
+                //     message: props => `${props.value} is not a valid IC number!`
+                // }
+            }
+        }
+    ],
     category: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Category',

@@ -26,17 +26,27 @@ const authMiddleware = async (req, res, next) => {
             return res.status(401).send({ error: 'Token is blacklisted' });
         }
 
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        let decoded;
+        try {
+            decoded = jwt.verify(token, process.env.JWT_SECRET);
+        } catch (error) {
+            if (error.name === 'TokenExpiredError') {
+                return res.status(401).send({ error: 'Token has expired. Please login again.' });
+            }
+            if (error.name === 'JsonWebTokenError') {
+                return res.status(400).send({ error: 'Malformed token' });
+            }
+            throw error;
+        }
         // console.log('Decoded Token:', decoded);
 
-        if (!decoded || !decoded.id) {
-            console.error('Invalid token');
-            return res.status(401).send({ error: 'Invalid token' });
-        }
+        // if (!decoded || !decoded.id) {
+        //     console.error('Invalid token');
+        //     return res.status(401).send({ error: 'Invalid token' });
+        // }
 
-        const user = await UserModel.findById(decoded.id);
+        const user = await UserModel.findById(decoded._id);
         // console.log('User:', user);
-
         if (!user) {
             console.error('User not found');
             return res.status(404).send({ error: 'User not found' });

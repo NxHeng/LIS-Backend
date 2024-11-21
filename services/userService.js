@@ -27,7 +27,16 @@ const authenticateUser = async (email, password) => {
         return { success: false, message: 'Invalid password' };
     }
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '24h' });
+    const token = jwt.sign(
+        { 
+            _id: user._id, 
+            role: user.role,
+            username: user.username
+        }, 
+        process.env.JWT_SECRET, 
+        { 
+            expiresIn: '24h' 
+        });
     return { success: true, token, user };
 };
 
@@ -42,7 +51,7 @@ const getUserDetails = async (userId) => {
 
 const blacklistToken = async (token) => {
     try {
-        const decoded = jwt.decode(token);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
         if (!decoded || !decoded.exp) {
             throw new Error('Invalid token: Token does not contain expiration claim');
         }
