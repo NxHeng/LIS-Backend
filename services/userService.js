@@ -1,10 +1,16 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const UserModel = require('../models/UserModel');
+const UserModel = require('../models/userModel');
 const TokenBlacklist = require('../models/tokenBlacklist');
 
-const createUser = async (username, email, password) => {
+const createStaff = async (username, email, password) => {
     const newUser = new UserModel({ username, email, password });
+    return newUser.save();
+};
+
+const createClient = async (username, email, password, phone, ic) => {
+    const newUser = new UserModel({ username, email, password, phone, ic });
+    newUser.role = 'client-pending';
     return newUser.save();
 };
 
@@ -13,10 +19,10 @@ const authenticateUser = async (email, password) => {
     if (!user) {
         return { success: false, message: 'User not found' };
     }
-
-    if (user.role === 'pending' || user.role === 'rejected') {
-        if (user.role === 'pending') {
-            return { success: false, message: 'Account is pending approval' };
+    
+    if (user.role === 'pending' || user.role === 'client-pending' || user.role === 'rejected') {
+        if (user.role === 'pending' || user.role === 'client-pending') {
+            return { success: false, message: 'Account is pending for approval' };
         } else {
             return { success: false, message: 'Account has been rejected' };
         }
@@ -92,7 +98,7 @@ const changePassword = async (userId, oldPassword, newPassword) => {
 
 // get list of users with id and name
 const getUserList = async () => {
-    return UserModel.find({}, { _id: 1, username: 1, email: 1, role: 1 });
+    return UserModel.find({}, { _id: 1, username: 1, email: 1, role: 1, phone: 1, ic: 1 });
 };
 
 const updateRole = async (userId, role) => {
@@ -121,7 +127,8 @@ const deleteUser = async (userId) => {
 }
 
 module.exports = {
-    createUser,
+    createStaff,
+    createClient,
     authenticateUser,
     getUserDetails,
     blacklistToken,

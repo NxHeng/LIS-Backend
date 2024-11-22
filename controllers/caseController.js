@@ -21,6 +21,16 @@ const getMyCases = async (req, res) => {
     }
 }
 
+const getCasesByClient = async (req, res) => {
+    const ic = req.params.ic;
+    try {
+        const cases = await caseService.getCasesByClient(ic);
+        res.status(200).json(cases);
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+}
+
 // Get a single case
 const getCase = async (req, res) => {
     const id = req.params.id;
@@ -169,6 +179,7 @@ const deleteTask = async (req, res) => {
 module.exports = {
     getCases,
     getMyCases,
+    getCasesByClient,
     getCase,
     createCase,
     addTask,

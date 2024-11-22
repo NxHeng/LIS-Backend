@@ -9,6 +9,7 @@ const {
     updateTask,
     updateTasksOrder,
     getTasksByStaff,
+    getCasesByClient,
     // getTasksByClient,
     deleteTask
 } = require('../controllers/caseController');
@@ -18,6 +19,7 @@ const router = express.Router();
 //Case Routes
 router.get('/getCases', getCases);
 router.get('/getMyCases/:id', getMyCases);
+router.get('/getCasesByClient/:ic', getCasesByClient);
 router.get('/getCase/:id', getCase);
 router.post('/createCase', createCase);
 router.post('/addTask/:caseId', addTask);

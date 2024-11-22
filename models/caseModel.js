@@ -23,10 +23,6 @@ const caseSchema = new Schema({
         ref: 'User',
         required: true
     },
-    // clients: {
-    //     type: [String], //
-    //     required: true
-    // },
     clients: [
         {
             name: {

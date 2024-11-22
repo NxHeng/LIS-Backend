@@ -53,6 +53,41 @@ const getMyCases = async (id) => {
     }
 };
 
+const getCasesByClient = async (icNumber) => {
+    try {
+        const cases = await CaseModel.find({
+            clients: {
+                $elemMatch: { icNumber } // Match IC number in the clients array
+            }
+        })
+            .sort({ createdAt: -1 }) // Sort by creation date
+            .populate('solicitorInCharge', 'username _id') // Populate solicitorInCharge field
+            .populate('clerkInCharge', 'username _id') // Populate clerkInCharge field
+            .populate('category', 'categoryName _id') // Populate category field
+            .lean() // Convert Mongoose document to plain JavaScript object
+            .exec();
+
+        // Filter, sort and select only required fields from tasks
+        cases.forEach(caseItem => {
+            caseItem.tasks = caseItem.tasks
+                // .filter(task => task.status === 'Completed') // Only include completed tasks
+                .sort((a, b) => a.order - b.order) // Sort by task order
+                .map(task => ({
+                    description: task.description,
+                    status: task.status,
+                    order: task.order
+                })); // Map tasks to include only required fields
+        });
+
+        return cases;
+    } catch (error) {
+        throw new Error(error.message);
+    }
+};
+
+
+
+
 const getCase = async (id) => {
     // Check id format
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -110,7 +145,7 @@ const createCase = async (body) => {
             return {
                 name: templateField.name,
                 type: templateField.type,
-                value: body.value, 
+                value: body.value,
                 remarks: body.remarks,
                 tel: body.tel,
                 email: body.email,
@@ -360,6 +395,7 @@ const deleteTask = async (caseId, taskId) => {
 module.exports = {
     getCases,
     getMyCases,
+    getCasesByClient,
     getCase,
     createCase,
     updateCase,

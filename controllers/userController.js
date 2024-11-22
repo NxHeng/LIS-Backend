@@ -1,14 +1,25 @@
 const userService = require('../services/userService');
 
-const registerUser = async (req, res) => {
+const staffRegister = async (req, res) => {
     const { username, email, password } = req.body;
     try {
-        await userService.createUser(username, email, password);
-        res.status(201).send('User created');
+        await userService.createStaff(username, email, password);
+        res.status(201).json('User created');
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 };
+
+const clientRegister = async (req, res) => {
+    const { username, email, password, phone, ic } = req.body;
+    try {
+        await userService.createClient(username, email, password, phone, ic);
+        res.status(201).json('Client created');
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 
 const loginUser = async (req, res) => {
     const { email, password } = req.body;
@@ -90,7 +101,8 @@ const deleteUser = async (req, res) => {
 
 
 module.exports = {
-    registerUser,
+    staffRegister,
+    clientRegister,
     loginUser,
     getUserProfile,
     logoutUser,

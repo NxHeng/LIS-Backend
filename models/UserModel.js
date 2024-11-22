@@ -16,10 +16,18 @@ const UserSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    phone: {
+        type: String,
+        required: false
+    },
+    ic: {
+        type: String,
+        required: false
+    },
     role: {
         type: String,
-        enum: ['solicitor', 'clerk', 'admin', 'pending', 'rejected'],
-        default: 'pending', // Setting default role to 'Clerk'
+        enum: ['solicitor', 'clerk', 'admin', 'pending', 'rejected', 'client', 'client-pending', 'client-rejected'],
+        default: 'pending',
         required: true,
     }
 });
@@ -39,4 +47,7 @@ UserSchema.methods.comparePassword = async function (candidatePassword) {
     return bcrypt.compare(candidatePassword, this.password);
 };
 
-module.exports = mongoose.model('User', UserSchema);
+// Check if the model is already compiled to avoid recompilation
+const UserModel = mongoose.models.User || mongoose.model('User', UserSchema);
+
+module.exports = UserModel;
