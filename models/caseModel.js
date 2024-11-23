@@ -42,7 +42,7 @@ const caseSchema = new Schema({
         }
     ],
     category: {
-        type: mongoose.Schema.Types.ObjectId,
+        type: mongoose.Schema.Types.ObjectId, 
         ref: 'Category',
         required: true
     },
