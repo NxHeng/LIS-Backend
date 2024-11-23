@@ -33,4 +33,7 @@ const fieldSchema = new Schema({
     }
 });
 
-module.exports = mongoose.model('Field', fieldSchema);
+// Check if the model is already compiled to avoid recompilation
+const FieldModel = mongoose.models.Field || mongoose.model('Field', fieldSchema);
+
+module.exports = FieldModel;

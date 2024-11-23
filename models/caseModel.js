@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Task = require('./taskModel');
 const Field = require('./fieldModel');
+const Log = require('./logModel');
 
 const Schema = mongoose.Schema;
 
@@ -51,7 +52,8 @@ const caseSchema = new Schema({
     status: {
         type: String,
         default: 'Active'
-    }
+    },
+    logs: [Log.schema]
 
 }, { timestamps: true });
 

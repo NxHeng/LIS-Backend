@@ -11,6 +11,7 @@ const getCases = async () => {
             .populate('solicitorInCharge', 'username _id')
             .populate('clerkInCharge', 'username _id')
             .populate('category', 'categoryName _id')
+            .populate('logs', 'logMessage _id')
             .exec();
 
         const sortedTasksCases = cases.map(caseItem => {
@@ -38,6 +39,7 @@ const getMyCases = async (id) => {
             .populate('solicitorInCharge', 'username _id')
             .populate('clerkInCharge', 'username _id')
             .populate('category', 'categoryName _id')
+            .populate('logs', 'logMessage _id')
             .exec();
 
         const sortedTasksCases = cases.map(caseItem => {
@@ -359,38 +361,86 @@ const deleteTask = async (caseId, taskId) => {
     }
 }
 
-// const checkTaskDueDates = async () => {
-//     const currentDate = new Date();
+const addLog = async (caseId, logData) => {
+    try {
+        if (!mongoose.Types.ObjectId.isValid(caseId)) {
+            throw new Error('Invalid case ID');
+        }
 
-//     // Find all cases that have tasks
-//     const cases = await CaseModel.find({ "tasks.dueDate": { $exists: true } });
+        const updatedCase = await CaseModel.findByIdAndUpdate(
+            caseId,
+            {
+                $push: {
+                    logs: { logMessage: logData.logMessage, createdBy: logData.createdBy },
+                },
+            },
+            { new: true }
+        );
 
-//     cases.forEach(caseDocument => {
-//         caseDocument.tasks.forEach(async (task) => {
-//             // Check if the task is due within the next 24 hours and has not been notified yet
-//             if (task.dueDate && task.dueDate <= new Date(currentDate.getTime() + 24 * 60 * 60 * 1000)) {
+        if (!updatedCase) {
+            throw new Error('Case not found');
+        }
 
-//                 // Example: Send notification only if task status is 'Awaiting Initiation' (or define other logic)
-//                 if (task.status === 'Pending') {
-//                     emitNotification(`Task "${task.description}" for case "${caseDocument._id}" is due soon!`);
+        return updatedCase;
+    } catch (error) {
+        console.error('Error adding log:', error);
+        throw error;
+    }
+};
 
-//                     // Optionally update task status or any other logic
-//                     // task.status = 'Due Soon';
-//                 }
-//             }
-//         });
 
-//         // Save the updated case with modified task statuses if needed
-//         caseDocument.markModified('tasks'); // Mark the tasks array as modified for Mongoose
-//         caseDocument.save();
-//     });
-// };
+const editLog = async (caseId, logId, logMessage) => {
+    try {
+        if (!mongoose.Types.ObjectId.isValid(caseId) || !mongoose.Types.ObjectId.isValid(logId)) {
+            throw new Error('Invalid ID');
+        }
 
-// Schedule the cron job to run every minute
-// cron.schedule('* * * * *', () => {
-//     console.log('Checking task due dates within case documents...');
-//     checkTaskDueDates();
-// });
+        const caseItem = await CaseModel.findById(caseId);
+        if (!caseItem) {
+            throw new Error('Case not found');
+        }
+
+        const log = caseItem.logs.id(logId);
+        if (!log) {
+            throw new Error('Log not found');
+        }
+
+        log.message = logMessage;
+        await caseItem.save();
+
+        return caseItem;
+    } catch (error) {
+        console.error('Error editing log:', error);
+        throw error;
+    }
+};
+
+
+const deleteLog = async (caseId, logId) => {
+    try {
+        if (!mongoose.Types.ObjectId.isValid(caseId) || !mongoose.Types.ObjectId.isValid(logId)) {
+            throw new Error('Invalid ID');
+        }
+
+        const updatedCase = await CaseModel.findByIdAndUpdate(
+            caseId,
+            {
+                $pull: { logs: { _id: logId } },
+            },
+            { new: true }
+        );
+
+        if (!updatedCase) {
+            throw new Error('Case not found');
+        }
+
+        return updatedCase;
+    } catch (error) {
+        console.error('Error deleting log:', error);
+        throw error;
+    }
+};
+
 
 module.exports = {
     getCases,
@@ -403,5 +453,8 @@ module.exports = {
     addTask,
     updateTask,
     getTasksByStaff,
-    deleteTask
+    deleteTask,
+    addLog,
+    editLog,
+    deleteLog
 };

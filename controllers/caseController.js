@@ -176,6 +176,50 @@ const deleteTask = async (req, res) => {
     }
 }
 
+const addLog = async (req, res) => {    
+    const { caseId } = req.params;
+    const logData = req.body;
+    try {
+        if (!caseId) {
+            return res.status(400).send({ message: "Missing case ID" });
+        }
+        const newLog = await caseService.addLog(caseId, logData);
+        res.status(201).json(newLog);
+    } catch (error) {
+        console.error('Error adding log:', error);
+        res.status(500).send({ message: error.message });
+    }
+}
+
+const editLog = async (req, res) => {
+    const { caseId, logId } = req.params;
+    const logData = req.body;
+    try {
+        if (!caseId || !logId) {
+            return res.status(400).send({ message: "Missing case ID or log ID" });
+        }
+        const updatedLog = await caseService.editLog(caseId, logId, logData);
+        res.status(200).json(updatedLog);
+    } catch (error) {
+        console.error('Error updating log:', error);
+        res.status(500).send({ message: error.message });
+    }
+}
+
+const deleteLog = async (req, res) => {
+    const { caseId, logId } = req.params;
+    try {
+        if (!caseId || !logId) {
+            return res.status(400).send({ message: "Missing case ID or log ID" });
+        }
+        const deletedLog = await caseService.deleteLog(caseId, logId);
+        res.status(200).json(deletedLog);
+    } catch (error) {
+        console.error('Error deleting log:', error);
+        res.status(500).send({ message: error.message });
+    }
+}
+
 module.exports = {
     getCases,
     getMyCases,
@@ -187,5 +231,8 @@ module.exports = {
     updateTask,
     updateTasksOrder,
     getTasksByStaff,
-    deleteTask
+    deleteTask,
+    addLog,
+    editLog,
+    deleteLog
 };

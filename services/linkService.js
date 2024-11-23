@@ -4,7 +4,7 @@ const { v4: uuidv4 } = require('uuid');
 
 const generateLink = async (caseId) => {
   const token = uuidv4();
-  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // Expires in 24 hours
+  const expiresAt = new Date(Date.now() + 1 * 1000); // Expires in 24 hours
 
   // Save to database
   const link = new Link({ token, expiresAt, caseId });
@@ -23,8 +23,19 @@ const validateLink = async (token) => {
     ],
   });
 
-  if (!link || new Date() > link.expiration) {
-    return null; // Return null if the link is invalid or expired
+  if (!link) {
+    console.log('Link not found');
+    return null;
+  }
+
+  // Ensure expiration is checked properly
+  const currentDate = new Date();
+  const expirationDate = new Date(link.expiresAt);
+  console.log(`Current Date: ${currentDate}, Expiration Date: ${expirationDate}`);
+
+  if (currentDate > expirationDate) {
+    console.log('Link has expired');
+    return null; // Return null if the link is expired
   }
 
   const temporary = true;
