@@ -14,4 +14,8 @@ router.get('/getUserList', userController.getUserList);
 router.patch('/updateRole', userController.updateRole);
 router.delete('/deleteUser', userController.deleteUser);
 
+// Password reset routes
+router.post('/forgotPassword', userController.forgotPassword);
+router.post('/resetPassword', userController.resetPassword);
+
 module.exports = router;

@@ -29,7 +29,15 @@ const UserSchema = new mongoose.Schema({
         enum: ['solicitor', 'clerk', 'admin', 'pending', 'rejected', 'client', 'client-pending', 'client-rejected'],
         default: 'pending',
         required: true,
-    }
+    },
+    resetPasswordToken: {
+        type: String,
+        default: null,
+    },
+    resetPasswordExpires: {
+        type: Date,
+        default: null,
+    },
 });
 
 UserSchema.pre('save', async function (next) {

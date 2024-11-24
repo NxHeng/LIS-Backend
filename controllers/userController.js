@@ -99,6 +99,27 @@ const deleteUser = async (req, res) => {
     }
 };
 
+const forgotPassword = async (req, res) => {
+    const { email } = req.body;
+    try {
+        const resetToken = await userService.generatePasswordResetToken(email);
+        await userService.sendPasswordResetEmail(email, resetToken);
+        res.status(200).send({ message: 'Password reset email sent' });
+    } catch (error) {
+        res.status(400).send({ message: error.message });
+    }
+};
+
+const resetPassword = async (req, res) => {
+    const { token, newPassword } = req.body;
+    try {
+        await userService.resetPassword(token, newPassword);
+        res.status(200).send({ message: 'Password has been reset successfully' });
+    } catch (error) {
+        res.status(400).send({ message: error.message });
+    }
+};
+
 
 module.exports = {
     staffRegister,
@@ -109,5 +130,7 @@ module.exports = {
     changePassword,
     getUserList,
     updateRole,
-    deleteUser
+    deleteUser,
+    forgotPassword,
+    resetPassword
 };
