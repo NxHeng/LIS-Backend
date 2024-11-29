@@ -1,16 +1,20 @@
 // services/linkService.js
 const Link = require('../models/linkModel');
 const { v4: uuidv4 } = require('uuid');
+const qrcode = require('qrcode');
 
 const generateLink = async (caseId) => {
   const token = uuidv4();
-  const expiresAt = new Date(Date.now() + 1 * 1000); // Expires in 24 hours
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // Expires in 24 hours
 
   // Save to database
   const link = new Link({ token, expiresAt, caseId });
   await link.save();
 
-  return token;
+  const url = `${process.env.FRONTEND_URL}/temporary/${caseId}/${token}`; // Full URL for the link
+  const qrCode = await qrcode.toDataURL(url); // Generate QR code as a Base64 image
+
+  return { token, qrCode, url }; 
 };
 
 const validateLink = async (token) => {

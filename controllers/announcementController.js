@@ -1,6 +1,6 @@
 const announcementService = require('../services/announcementService');
 const notificationService = require('../services/notificationService');
-// const UserModel = require('../models/UserModel');
+const UserModel = require('../models/UserModel');
 
 // Get all announcements
 const getAnnouncements = async (req, res) => {
