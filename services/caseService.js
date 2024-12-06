@@ -308,12 +308,10 @@ const getTasksByStaff = async (userId) => {
         if (!mongoose.Types.ObjectId.isValid(userId)) {
             throw new Error('Invalid user ID');
         }
-        // Find all cases where the solicitorInCharge or clerkInCharge matches the given userId
+        // Find all cases where the solicitorInCharge or clerkInCharge matches the given userId, and the case is not closed
         const cases = await CaseModel.find({
-            $or: [
-                { solicitorInCharge: userId },
-                { clerkInCharge: userId }
-            ]
+            $or: [{ solicitorInCharge: userId }, { clerkInCharge: userId }],
+            status: { $ne: 'closed' }
         })
             .populate('solicitorInCharge', 'username _id')
             .populate('clerkInCharge', 'username _id')

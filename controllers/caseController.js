@@ -98,6 +98,9 @@ const updateCase = async (req, res) => {
         if (status !== originalStatus && status === 'closed') {
             notificationType = 'status_change';
             notificationMessage = `Case "${matterName}" has been closed!`;
+            // update the closedAt field and save the case
+            updatedCase.closedAt = new Date();
+            await updatedCase.save();
         }
 
         await notificationService.createAndEmitNotification(req.io, {
@@ -123,6 +126,13 @@ const updateTask = async (req, res) => {
             return res.status(400).send({ message: "Missing case ID or task ID" });
         }
         const updatedTask = await caseService.updateTask(caseId, taskId, taskData);
+
+        // if task changed to completed, update the completedAt field
+        if (taskData.status === 'Completed') {
+            updatedTask.completedAt = new Date();
+            await updatedTask.save();
+        }
+
         res.status(200).json(updatedTask);
     } catch (error) {
         console.error('Error updating task:', error);

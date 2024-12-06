@@ -53,7 +53,11 @@ const caseSchema = new Schema({
         type: String,
         default: 'Active'
     },
-    logs: [Log.schema]
+    logs: [Log.schema],
+    closedAt: {
+        type: Date,
+        default: null
+    }
 
 }, { timestamps: true });
 
