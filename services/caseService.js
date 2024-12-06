@@ -318,18 +318,25 @@ const getTasksByStaff = async (userId) => {
             .populate('category', 'categoryName _id')
             .exec();
 
-        // Extract all tasks from the retrieved cases
-        const tasks = cases.reduce((acc, caseItem) => {
+        // Extract and group tasks by matterId (or matterName)
+        const tasksGroupedByMatter = cases.reduce((acc, caseItem) => {
             const caseTasks = caseItem.tasks.map(task => ({
                 ...task.toObject(),
                 caseId: caseItem._id, // Attach the caseId to each task
                 clients: caseItem.clients, // Attach the clients to each task
                 matterName: caseItem.matterName, // Attach the matterName to each task
             }));
-            return acc.concat(caseTasks);
-        }, []);
 
-        return tasks;
+            // Use matterName as the key for grouping
+            if (!acc[caseItem.matterName]) {
+                acc[caseItem.matterName] = [];
+            }
+            acc[caseItem.matterName].push(...caseTasks);
+
+            return acc;
+        }, {});
+
+        return tasksGroupedByMatter;
     } catch (error) {
         throw new Error(error.message);
     }
