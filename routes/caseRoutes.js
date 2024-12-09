@@ -30,9 +30,9 @@ router.patch('/updateTasksOrder/:caseId', updateTasksOrder);
 router.get('/getTasksByStaff/:id', getTasksByStaff);
 router.delete('/deleteTask/:caseId/:taskId', deleteTask);
 router.patch('/updateCase/:id', updateCase);
-// router.delete('/deleteCase/:id', );
 router.post('/addLog/:caseId', addLog);
 router.patch('/editLog/:caseId/:logId', editLog);
 router.delete('/deleteLog/:caseId/:logId', deleteLog);
 
+// router.delete('/deleteCase/:id', );
 module.exports = router;

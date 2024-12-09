@@ -50,14 +50,18 @@ const createCase = async (req, res) => {
         const { solicitorInCharge, clerkInCharge, matterName } = caseItem;
         const usersNotified = [solicitorInCharge, clerkInCharge];
 
-        // console.log("req.io:", req.io)
-        await notificationService.createAndEmitNotification(req.io, {
-            type: 'new_case',
-            message: `New case "${matterName}" has been created!`,
-            caseId: caseItem,
-            usersNotified
-        });
-
+        try{
+            await notificationService.createAndEmitNotification(req.io, {
+                type: 'new_case',
+                message: `New case "${matterName}" has been created!`,
+                caseId: caseItem,
+                usersNotified
+            });
+        } catch (notifyError) {
+            console.error('Notification failed:', notifyError.message);
+            // Proceed without blocking case creation
+        }
+        
         res.status(201).json(caseItem);
     } catch (error) {
         res.status(400).json({ error: error.message });

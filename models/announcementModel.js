@@ -13,6 +13,12 @@ const announcementSchema = new mongoose.Schema({
         type: Date,
         default: Date.now
     },
+    fileURI: {
+        type: String
+    },
+    fileName: {
+        type: String
+    }
 });
 
 module.exports = mongoose.model('Announcement', announcementSchema);

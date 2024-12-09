@@ -1,6 +1,8 @@
 const announcementService = require('../services/announcementService');
 const notificationService = require('../services/notificationService');
 const UserModel = require('../models/UserModel');
+const path = require('path');
+const fs = require('fs');
 
 // Get all announcements
 const getAnnouncements = async (req, res) => {
@@ -25,7 +27,8 @@ const getAnnouncement = async (req, res) => {
 
 const createAnnouncement = async (req, res) => {
     try {
-        const announcement = await announcementService.createAnnouncement(req.body);
+        const file = req.file;
+        const announcement = await announcementService.createAnnouncement(req.body, file);
 
         // Notify solicitor and clerk
         const { title } = announcement;
@@ -76,10 +79,44 @@ const deleteAnnouncement = async (req, res) => {
     }
 }
 
+const fetchAttachment = async (req, res) => {
+    const { URI } = req.params;
+
+    // Use __dirname to get the absolute path of the current directory
+    const filePath = path.join(__dirname, '../uploads', URI);
+
+    // Check if the file exists
+    if (fs.existsSync(filePath)) {
+        res.download(filePath, (err) => {
+            if (err) {
+                // Handle error (e.g., file not found)
+                res.status(500).send('File download failed');
+            }
+        });
+    } else {
+        // If the file doesn't exist, return an error
+        res.status(404).send('File not found');
+    }
+}
+
+const deleteAttachment = async (req, res) => {
+    const { URI } = req.params;
+    try {
+        console.log(URI);
+        await announcementService.deleteAttachment(URI);
+        res.status(204).send();
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+}
+
+
 module.exports = {
     getAnnouncements,
     getAnnouncement,
     createAnnouncement,
     updateAnnouncement,
     deleteAnnouncement,
+    fetchAttachment,
+    deleteAttachment,
 };
