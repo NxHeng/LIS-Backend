@@ -14,6 +14,7 @@ const announcementRoutes = require('./routes/announcementRoutes');
 const documentRoutes = require('./routes/documentRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const linkRoutes = require('./routes/linkRoutes');
+const notificationSettingRoutes = require('./routes/notificationSettingRoutes');
 
 const { initializeCronJob } = require('./cron/cronJobs');
 
@@ -48,6 +49,7 @@ app.use('/announcement', announcementRoutes);
 app.use('/document', documentRoutes);
 app.use('/notification', notificationRoutes);
 app.use('/link', linkRoutes);
+app.use('/notificationSetting', notificationSettingRoutes);
 
 // After socket setup
 socketUtils.setupIo(io);

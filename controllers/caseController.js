@@ -105,7 +105,7 @@ const updateCase = async (req, res) => {
             // update the closedAt field and save the case
             updatedCase.closedAt = new Date();
             await updatedCase.save();
-        }
+        }   
 
         await notificationService.createAndEmitNotification(req.io, {
             type: notificationType,

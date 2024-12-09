@@ -12,7 +12,6 @@ const createAndEmitNotification = async (io, notificationData) => {
             caseId,
             usersNotified
         });
-        // console.log("Notification:", notification);
         await notification.save();
 
         // Emit notification using socket.io to the users
