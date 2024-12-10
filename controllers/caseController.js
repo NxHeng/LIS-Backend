@@ -46,10 +46,8 @@ const getCase = async (req, res) => {
 const createCase = async (req, res) => {
     try {
         const caseItem = await caseService.createCase(req.body);
-        console.log('Testttttttttttt: ', caseItem);
         //Fetch notifcation settings for new case
         const sendNotification = await notificationSettingService.shouldSendNotification('new_case');
-        console.log('sendNotification:', sendNotification);
         if (sendNotification) {
             // Notify solicitor and clerk
             const { solicitorInCharge, clerkInCharge, matterName } = caseItem;
@@ -69,8 +67,11 @@ const createCase = async (req, res) => {
         }
         const sendEmail = await notificationSettingService.shouldSendEmail('new_case');
         if (sendEmail) {
-            // Send email notification
-            // EmailService.sendEmail('new_case', caseItem);
+            try {
+                await caseService.sendNewCaseEmail(caseItem._id);
+            } catch (error) {
+                console.error('Email notification failed:', error.message);
+            }
         }
 
         res.status(201).json(caseItem);
@@ -133,9 +134,18 @@ const updateCase = async (req, res) => {
             }
         }
         const sendEmail = await notificationSettingService.shouldSendEmail(notificationType);
-        if (sendEmail) {
-            // Send email notification
-            // EmailService.sendEmail(notificationType, updatedCase);
+        if (sendEmail && notificationType === 'detail_update') {
+            try {
+                await caseService.sendUpdateDetailEmail(updatedCase._id);
+            } catch (error) {
+                console.error('Email notification failed:', error.message);
+            }
+        } else if (sendEmail && notificationType === 'status_change') {
+            try {
+                await caseService.sendCaseClosedEmail(updatedCase._id);
+            } catch (error) {
+                console.error('Email notification failed:', error.message);
+            }
         }
 
         res.status(200).json(updatedCase);

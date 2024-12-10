@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const CaseModel = require('../models/caseModel');
 const CategoryModel = require('../models/categoryModel');
 const Task = require('../models/taskModel');
+const nodemailer = require('nodemailer');
 
 // Get all categories
 const getCases = async () => {
@@ -114,6 +115,8 @@ const getCase = async (id) => {
         throw new Error(error.message);
     }
 };
+
+
 
 const createCase = async (body) => {
     try {
@@ -261,11 +264,19 @@ const updateTask = async (caseId, taskId, body) => {
             throw new Error('Task not found');
         }
 
-        // Update the task properties
+        // Check if the `dueDate` or `reminder` has been changed
+        if (body.dueDate && body.dueDate !== task.dueDate?.toISOString()) {
+            task.dueDate = body.dueDate;
+            task.dueDateNotificationSent = false;
+        }
+        if (body.reminder && body.reminder !== task.reminder?.toISOString()) {
+            task.reminder = body.reminder;
+            task.reminderNotificationSent = false;
+        }
+
+        // Update other task properties
         task.description = body.description || task.description;
         task.initiationDate = body.initiationDate || task.initiationDate;
-        task.dueDate = body.dueDate || task.dueDate;
-        task.reminder = body.reminder || task.reminder;
         task.remark = body.remark || task.remark;
         task.status = body.status || task.status;
         task.order = body.order || task.order;
@@ -446,6 +457,385 @@ const deleteLog = async (caseId, logId) => {
     }
 };
 
+const sendNewCaseEmail = async (caseId) => {
+    try {
+        if (!mongoose.Types.ObjectId.isValid(caseId)) {
+            throw new Error('Invalid case ID');
+        }
+        // Get the case details
+        const caseItem = await CaseModel.findById(caseId)
+            .populate('solicitorInCharge', 'username email _id')
+            .populate('clerkInCharge', 'username email _id')
+            .populate('category', 'categoryName _id')
+            .exec();
+        // Send email to solicitorInCharge
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS
+            }
+        });
+
+        const caseDetailsUrl = `${process.env.FRONTEND_URL}/cases/details/${caseId}`;
+        console.log('caseDetailsUrl:', caseDetailsUrl);
+        console.log(process.env.EMAIL_USER);
+        console.log(`${caseItem.solicitorInCharge.email}, ${caseItem.clerkInCharge.email}`);
+
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: `${caseItem.solicitorInCharge.email}, ${caseItem.clerkInCharge.email}`,
+            subject: 'New Case Created (Legal Information System)',
+            html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
+            <div style="background-color: #4CAF50; color: white; padding: 20px; text-align: center;">
+                <h1 style="margin: 0;">Legal Information System</h1>
+                <p style="margin: 0;">New Case Created</p>
+            </div>
+            <div style="padding: 20px; line-height: 1.6; color: #333;">
+                <p>Hello,</p>
+                <p>
+                    A new case titled "<strong>${caseItem.matterName}</strong>" has been created in the system.
+                    The solicitor assigned to this case is <strong>${caseItem.solicitorInCharge.username}</strong>. While the clerk assigned is <strong>${caseItem.clerkInCharge.username}</strong>.
+                    The case is under the category of <strong>${caseItem.category.categoryName}</strong>.
+                </p>
+                <div style="text-align: center; margin: 20px 0;">
+                    <a href="${caseDetailsUrl}" style="display: inline-block; padding: 10px 20px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px; font-size: 16px;">
+                        View Case Details
+                    </a>
+                </div>
+                <p>If the button above does not work, please copy and paste the following link into your browser:</p>
+                <p style="word-break: break-all; color: #4CAF50;">${caseDetailsUrl}</p>
+                <p>
+                    If you have any questions or require further assistance, please contact the system administrator.
+                </p>
+                <p>Thank you,<br>The Legal Information System Team</p>
+            </div>
+            <div style="background-color: #f4f4f4; color: #666; padding: 10px; text-align: center; font-size: 12px;">
+                <p style="margin: 0;">© ${new Date().getFullYear()} Legal Information System. All Rights Reserved.</p>
+            </div>
+        </div>
+    `,
+        };
+
+        return transporter.sendMail(mailOptions, (error, info) => {
+            if (error) {
+                console.error("Error sending email: ", error);
+            } else {
+                console.log("Email sent: ", info.response);
+            }
+        });
+    } catch (error) {
+        console.error('Error sending email:', error);
+        throw new Error('Error sending email');
+    }
+};
+
+const sendUpdateDetailEmail = async (caseId) => {
+    try {
+        if (!mongoose.Types.ObjectId.isValid(caseId)) {
+            throw new Error('Invalid case ID');
+        }
+        // Get the case details
+        const caseItem = await CaseModel.findById(caseId)
+            .populate('solicitorInCharge', 'username email _id')
+            .populate('clerkInCharge', 'username email _id')
+            .populate('category', 'categoryName _id')
+            .exec();
+
+        // Send email to solicitorInCharge and clerkInCharge
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS
+            }
+        });
+
+        const caseDetailsUrl = `${process.env.FRONTEND_URL}/cases/details/${caseId}`;
+        console.log('caseDetailsUrl:', caseDetailsUrl);
+        console.log(process.env.EMAIL_USER);
+        console.log(`${caseItem.solicitorInCharge.email}, ${caseItem.clerkInCharge.email}`);
+
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: `${caseItem.solicitorInCharge.email}, ${caseItem.clerkInCharge.email}`,
+            subject: 'Case Details Updated (Legal Information System)',
+            html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
+            <div style="background-color: #4CAF50; color: white; padding: 20px; text-align: center;">
+                <h1 style="margin: 0;">Legal Information System</h1>
+                <p style="margin: 0;">Case Details Updated</p>
+            </div>
+            <div style="padding: 20px; line-height: 1.6; color: #333;">
+                <p>Hello,</p>
+                <p>
+                    The details for the case titled "<strong>${caseItem.matterName}</strong>" have been updated in the system.
+                </p>
+                <p>
+                    Solicitor in Charge: <strong>${caseItem.solicitorInCharge.username}</strong><br>
+                    Clerk in Charge: <strong>${caseItem.clerkInCharge.username}</strong><br>
+                    Category: <strong>${caseItem.category?.categoryName || "N/A"}</strong>
+                </p>
+                <div style="text-align: center; margin: 20px 0;">
+                    <a href="${caseDetailsUrl}" style="display: inline-block; padding: 10px 20px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px; font-size: 16px;">
+                        View Updated Case Details
+                    </a>
+                </div>
+                <p>If the button above does not work, please copy and paste the following link into your browser:</p>
+                <p style="word-break: break-all; color: #4CAF50;">${caseDetailsUrl}</p>
+                <p>
+                    If you have any questions or require further assistance, please contact the system administrator.
+                </p>
+                <p>Thank you,<br>The Legal Information System Team</p>
+            </div>
+            <div style="background-color: #f4f4f4; color: #666; padding: 10px; text-align: center; font-size: 12px;">
+                <p style="margin: 0;">© ${new Date().getFullYear()} Legal Information System. All Rights Reserved.</p>
+            </div>
+        </div>
+    `,
+        };
+
+        return transporter.sendMail(mailOptions, (error, info) => {
+            if (error) {
+                console.error("Error sending email: ", error);
+            } else {
+                console.log("Email sent: ", info.response);
+            }
+        });
+    } catch (error) {
+        console.error('Error sending email:', error);
+        throw new Error('Error sending email');
+    }
+};
+
+const sendCaseClosedEmail = async (caseId) => {
+    try {
+        if (!mongoose.Types.ObjectId.isValid(caseId)) {
+            throw new Error('Invalid case ID');
+        }
+        // Get the case details
+        const caseItem = await CaseModel.findById(caseId)
+            .populate('solicitorInCharge', 'username email _id')
+            .populate('clerkInCharge', 'username email _id')
+            .populate('category', 'categoryName _id')
+            .exec();
+
+        // Send email to solicitorInCharge and clerkInCharge
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS
+            }
+        });
+
+        const caseDetailsUrl = `${process.env.FRONTEND_URL}/cases/details/${caseId}`;
+        console.log('caseDetailsUrl:', caseDetailsUrl);
+        console.log(process.env.EMAIL_USER);
+        console.log(`${caseItem.solicitorInCharge.email}, ${caseItem.clerkInCharge.email}`);
+
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: `${caseItem.solicitorInCharge.email}, ${caseItem.clerkInCharge.email}`,
+            subject: `Case Closed (Legal Information System)`,
+            html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
+            <div style="background-color: #D32F2F; color: white; padding: 20px; text-align: center;">
+                <h1 style="margin: 0;">Legal Information System</h1>
+                <p style="margin: 0;">Case Closed</p>
+            </div>
+            <div style="padding: 20px; line-height: 1.6; color: #333;">
+                <p>Hello,</p>
+                <p>
+                    The case titled "<strong>${caseItem.matterName}</strong>" has been marked as <strong>Closed</strong>.
+                </p>
+                <p>
+                    Solicitor in Charge: <strong>${caseItem.solicitorInCharge.username}</strong><br>
+                    Clerk in Charge: <strong>${caseItem.clerkInCharge.username}</strong><br>
+                    Category: <strong>${caseItem.category?.categoryName || "N/A"}</strong>
+                </p>
+                <div style="text-align: center; margin: 20px 0;">
+                    <a href="${caseDetailsUrl}" style="display: inline-block; padding: 10px 20px; background-color: #D32F2F; color: white; text-decoration: none; border-radius: 5px; font-size: 16px;">
+                        View Case Details
+                    </a>
+                </div>
+                <p>If the button above does not work, please copy and paste the following link into your browser:</p>
+                <p style="word-break: break-all; color: #D32F2F;">${caseDetailsUrl}</p>
+                <p>
+                    If you have any questions or require further assistance, please contact the system administrator.
+                </p>
+                <p>Thank you,<br>The Legal Information System Team</p>
+            </div>
+            <div style="background-color: #f4f4f4; color: #666; padding: 10px; text-align: center; font-size: 12px;">
+                <p style="margin: 0;">© ${new Date().getFullYear()} Legal Information System. All Rights Reserved.</p>
+            </div>
+        </div>
+    `,
+        };
+
+        return transporter.sendMail(mailOptions, (error, info) => {
+            if (error) {
+                console.error("Error sending email: ", error);
+            } else {
+                console.log("Email sent: ", info.response);
+            }
+        });
+    } catch (error) {
+        console.error('Error sending email:', error);
+        throw new Error('Error sending email');
+    }
+};
+
+const sendDeadlineEmail = async (caseId, task) => {
+    try {
+        if (!mongoose.Types.ObjectId.isValid(caseId)) {
+            throw new Error('Invalid case ID');
+        }
+        // Get the case details
+        const caseItem = await CaseModel.findById(caseId)
+            .populate('solicitorInCharge', 'username email _id')
+            .populate('clerkInCharge', 'username email _id')
+            .populate('category', 'categoryName _id')
+            .exec();
+
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS
+            }
+        });
+
+        const caseDetailsUrl = `${process.env.FRONTEND_URL}/cases/details/${caseId}`;
+
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: `${caseItem.solicitorInCharge.email}, ${caseItem.clerkInCharge.email}`,
+            subject: `Task Deadline Reminder (Legal Information System)`,
+            html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
+            <div style="background-color: #FF9800; color: white; padding: 20px; text-align: center;">
+                <h1 style="margin: 0;">Legal Information System</h1>
+                <p style="margin: 0;">Task Deadline Approaching</p>
+            </div>
+            <div style="padding: 20px; line-height: 1.6; color: #333;">
+                <p>Hello,</p>
+                <p>
+                    The task "<strong>${task.description}</strong>" in the case "<strong>${caseItem.matterName}</strong>" is due soon.
+                </p>
+                <p>
+                    Task Description: <strong>${task.description}</strong><br>
+                    Due Date: <strong>${task.dueDate}</strong><br>
+                </p>
+                <div style="text-align: center; margin: 20px 0;">
+                    <a href="${caseDetailsUrl}" style="display: inline-block; padding: 10px 20px; background-color: #FF9800; color: white; text-decoration: none; border-radius: 5px; font-size: 16px;">
+                        View Case Details
+                    </a>
+                </div>
+                <p>If the button above does not work, please copy and paste the following link into your browser:</p>
+                <p style="word-break: break-all; color: #FF9800;">${caseDetailsUrl}</p>
+                <p>
+                    If you have any questions or require further assistance, please contact the system administrator.
+                </p>
+                <p>Thank you,<br>The Legal Information System Team</p>
+            </div>
+            <div style="background-color: #f4f4f4; color: #666; padding: 10px; text-align: center; font-size: 12px;">
+                <p style="margin: 0;">© ${new Date().getFullYear()} Legal Information System. All Rights Reserved.</p>
+            </div>
+        </div>
+    `,
+        };
+
+        return transporter.sendMail(mailOptions, (error, info) => {
+            if (error) {
+                console.error("Error sending email: ", error);
+            } else {
+                console.log("Email sent: ", info.response);
+            }
+        }
+        );
+    } catch (error) {
+        console.error('Error sending email:', error);
+        throw new Error('Error sending email');
+    }
+};
+
+const sendReminderEmail = async (caseId, task) => {
+    try {
+        if (!mongoose.Types.ObjectId.isValid(caseId)) {
+            throw new Error('Invalid case ID');
+        }
+        // Get the case details
+        const caseItem = await CaseModel.findById(caseId)
+            .populate('solicitorInCharge', 'username email _id')
+            .populate('clerkInCharge', 'username email _id')
+            .populate('category', 'categoryName _id')
+            .exec();
+
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS
+            }
+        });
+
+        const caseDetailsUrl = `${process.env.FRONTEND_URL}/cases/details/${caseId}`;
+
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: `${caseItem.solicitorInCharge.email}, ${caseItem.clerkInCharge.email}`,
+            subject: `Task Deadline Reminder (Legal Information System)`,
+            html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
+            <div style="background-color: #FF9800; color: white; padding: 20px; text-align: center;">
+                <h1 style="margin: 0;">Legal Information System</h1>
+                <p style="margin: 0;">Task Reminder</p>
+            </div>
+            <div style="padding: 20px; line-height: 1.6; color: #333;">
+                <p>Hello,</p>
+                <p>
+                    You have a reminder for the task "<strong>${task.description}</strong>" in the case "<strong>${caseItem.matterName}</strong>".
+                </p>
+                <p>
+                    Task Description: <strong>${task.description}</strong><br>
+                    Due Date: <strong>${task.dueDate}</strong><br>
+                    Reminder Date: <strong>${task.reminder}</strong><br>
+                </p>
+                <div style="text-align: center; margin: 20px 0;">
+                    <a href="${caseDetailsUrl}" style="display: inline-block; padding: 10px 20px; background-color: #FF9800; color: white; text-decoration: none; border-radius: 5px; font-size: 16px;">
+                        View Case Details
+                    </a>
+                </div>
+                <p>If the button above does not work, please copy and paste the following link into your browser:</p>
+                <p style="word-break: break-all; color: #FF9800;">${caseDetailsUrl}</p>
+                <p>
+                    If you have any questions or require further assistance, please contact the system administrator.
+                </p>
+                <p>Thank you,<br>The Legal Information System Team</p>
+            </div>
+            <div style="background-color: #f4f4f4; color: #666; padding: 10px; text-align: center; font-size: 12px;">
+                <p style="margin: 0;">© ${new Date().getFullYear()} Legal Information System. All Rights Reserved.</p>
+            </div>
+        </div>
+    `,
+        };
+
+        return transporter.sendMail(mailOptions, (error, info) => {
+            if (error) {
+                console.error("Error sending email: ", error);
+            } else {
+                console.log("Email sent: ", info.response);
+            }
+        }
+        );
+    } catch (error) {
+        console.error('Error sending email:', error);
+        throw new Error('Error sending email');
+    }
+};
+
 
 module.exports = {
     getCases,
@@ -461,5 +851,11 @@ module.exports = {
     deleteTask,
     addLog,
     editLog,
-    deleteLog
+    deleteLog,
+    sendNewCaseEmail,
+    sendUpdateDetailEmail,
+    sendCaseClosedEmail,
+    sendDeadlineEmail,
+    sendReminderEmail,
+
 };

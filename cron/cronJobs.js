@@ -2,6 +2,7 @@ const cron = require('node-cron');
 const Case = require('../models/caseModel');
 const notificationService = require('../services/notificationService');
 const notificationSettingService = require('../services/notificationSettingService');
+const caseService = require('../services/caseService');
 const moment = require('moment-timezone'); // Use moment-timezone for time zone handling
 
 // Set your local time zone (for example, Malaysia)
@@ -18,18 +19,20 @@ const initializeCronJob = (socketIoInstance) => {
     const taskNotificationJob = cron.schedule('* * * * *', async () => {
         console.log('Cron job running at:', moment().tz(localTimeZone).format());
         try {
-
+            // Check notification and email settings
             const sendDeadlineNotification = await notificationSettingService.shouldSendNotification('deadline');
             const sendReminderNotification = await notificationSettingService.shouldSendNotification('reminder');
+            const sendDeadlineEmail = await notificationSettingService.shouldSendEmail('deadline');
+            const sendReminderEmail = await notificationSettingService.shouldSendEmail('reminder');
 
-            if (sendDeadlineNotification || sendReminderNotification) {
-                // Fetch all cases with their tasks
+            if (sendDeadlineNotification || sendReminderNotification || sendDeadlineEmail || sendReminderEmail) {
+                // Fetch all cases with tasks requiring notifications
                 const cases = await Case.find({
                     $or: [
                         { 'tasks.dueDateNotificationSent': false },
                         { 'tasks.reminderNotificationSent': false }
                     ]
-                }).populate('tasks');
+                });
 
                 // Get the current time in the local time zone
                 const currentLocalTime = moment().tz(localTimeZone);
@@ -41,53 +44,70 @@ const initializeCronJob = (socketIoInstance) => {
                     let caseModified = false; // Track if the case has been modified
 
                     for (const task of caseItem.tasks) {
-                        // Convert the task dates to the local time zone
-                        const taskDueDateLocal = moment(task.dueDate).tz(localTimeZone);
-                        const taskReminderLocal = moment(task.reminder).tz(localTimeZone);
+                        try {
+                            // Convert task dates to local time
+                            const taskDueDateLocal = moment(task.dueDate).tz(localTimeZone);
+                            const taskReminderLocal = moment(task.reminder).tz(localTimeZone);
 
-                        // Check if the task is due within the next 24 hours
-                        if (sendDeadlineNotification &&
-                            task.dueDate &&
-                            taskDueDateLocal.isSameOrBefore(currentLocalTime.clone().add(1, 'day')) && !task.dueDateNotificationSent
-                        ) {
-                            // Send deadline notification
-                            await notificationService.createAndEmitNotification(io, {
-                                type: 'deadline',
-                                message: `Task "${task.description}" is due tomorrow!`,
-                                taskId: task._id,
-                                caseId: caseItem,
-                                usersNotified
-                            });
+                            // Deadline notification and email logic
+                            console.log(task.description === 'SPA Status' && caseItem.matterName === 'Matter 2' ? task.dueDateNotificationSent + caseItem.matterName : 'N/A');
 
-                            // Update task to mark notification as sent
-                            console.log(task.dueDateNotificationSent);
-                            task.dueDateNotificationSent = true;
-                            caseModified = true;
-                        }
+                            if (task.dueDate &&
+                                taskDueDateLocal.isSameOrBefore(currentLocalTime.clone().add(1, 'day')) &&
+                                !task.dueDateNotificationSent
+                            ) {
+                                if (sendDeadlineNotification) {
+                                    await notificationService.createAndEmitNotification(io, {
+                                        type: 'deadline',
+                                        message: `Task "${task.description}" is due tomorrow!`,
+                                        taskId: task._id,
+                                        caseId: caseItem,
+                                        usersNotified
+                                    });
+                                }
 
-                        // Check if the reminder is within the next 24 hours
-                        if (sendReminderNotification &&
-                            task.reminder &&
-                            taskReminderLocal.isSameOrBefore(currentLocalTime.clone().add(1, 'day')) && !task.reminderNotificationSent
-                        ) {
-                            // Send reminder notification
-                            await notificationService.createAndEmitNotification(io, {
-                                type: 'reminder',
-                                message: `Reminder for task "${task.description}"`,
-                                taskId: task._id,
-                                caseId: caseItem,
-                                usersNotified
-                            });
+                                if (sendDeadlineEmail) {
+                                    await caseService.sendDeadlineEmail(caseItem._id, task);
+                                }
 
-                            // Update task to mark notification as sent
-                            console.log(task.reminderNotificationSent);
-                            task.reminderNotificationSent = true;
-                            caseModified = true;
+                                task.dueDateNotificationSent = true;
+                                caseModified = true;
+                            }
+
+                            // Reminder notification and email logic
+                            if (task.reminder &&
+                                taskReminderLocal.isSameOrBefore(currentLocalTime.clone().add(1, 'day')) &&
+                                !task.reminderNotificationSent
+                            ) {
+                                if (sendReminderNotification) {
+                                    await notificationService.createAndEmitNotification(io, {
+                                        type: 'reminder',
+                                        message: `Reminder for task "${task.description}"`,
+                                        taskId: task._id,
+                                        caseId: caseItem,
+                                        usersNotified
+                                    });
+                                }
+
+                                if (sendReminderEmail) {
+                                    await caseService.sendReminderEmail(caseItem._id, task);
+                                }
+
+                                task.reminderNotificationSent = true;
+                                caseModified = true;
+                            }
+                        } catch (taskError) {
+                            console.error(`Error processing task ${task._id}:`, taskError);
                         }
                     }
+
                     // Save the parent Case document if it has been modified
                     if (caseModified) {
-                        await caseItem.save(); // Save the entire case, including the modified tasks
+                        try {
+                            await caseItem.save();
+                        } catch (saveError) {
+                            console.error(`Error saving case ${caseItem._id}:`, saveError);
+                        }
                     }
                 }
             }
