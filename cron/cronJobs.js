@@ -50,8 +50,6 @@ const initializeCronJob = (socketIoInstance) => {
                             const taskReminderLocal = moment(task.reminder).tz(localTimeZone);
 
                             // Deadline notification and email logic
-                            console.log(task.description === 'SPA Status' && caseItem.matterName === 'Matter 2' ? task.dueDateNotificationSent + caseItem.matterName : 'N/A');
-
                             if (task.dueDate &&
                                 taskDueDateLocal.isSameOrBefore(currentLocalTime.clone().add(1, 'day')) &&
                                 !task.dueDateNotificationSent

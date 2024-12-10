@@ -51,13 +51,21 @@ const createAnnouncement = async (body, file) => {
 }
 
 // Update an announcement
-const updateAnnouncement = async (id, updateData) => {
+const updateAnnouncement = async (id, updateData, file) => {
     // Check id format
     if (!mongoose.Types.ObjectId.isValid(id)) {
         throw new Error('Announcement not found');
     }
-    // Find announcement by id and update
-    const announcement = await AnnouncementModel.findOneAndUpdate({ _id: id }, updateData, { new: true });
+    // Find announcement by id and update title, description, fileURI, and fileName
+    const announcement = await AnnouncementModel.findByIdAndUpdate(id,
+        {
+            ...updateData,
+            fileURI: file ? file.filename : null,
+            fileName: file ? file.originalname : null
+        },
+        { new: true }
+    );
+
     if (!announcement) {
         throw new Error('Announcement not found');
     }

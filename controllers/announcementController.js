@@ -52,12 +52,13 @@ const createAnnouncement = async (req, res) => {
 
 const updateAnnouncement = async (req, res) => {
     const { id } = req.params;
+    const file = req.file;
     const announcementData = req.body;
     try {
         if (!id) {
             return res.status(400).send({ message: "Missing announcement ID" });
         }
-        const updatedAnnouncement = await announcementService.updateAnnouncement(id, announcementData);
+        const updatedAnnouncement = await announcementService.updateAnnouncement(id, announcementData, file);
         res.status(200).json(updatedAnnouncement);
     } catch (error) {
         console.error('Error updating announcement:', error);
