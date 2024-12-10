@@ -17,12 +17,22 @@ const updateSetting = async (type, updates) => {
 // Check if a notification type should be sent
 const shouldSendNotification = async (type) => {
     const setting = await NotificationSettingModel.findOne({ type });
+
+    if (!setting) {
+        throw new Error('Notification setting not found.');
+    }
+
     return setting?.isEnabled ?? false;
 };
 
 // Check if email should be sent for a notification type
 const shouldSendEmail = async (type) => {
     const setting = await NotificationSettingModel.findOne({ type });
+
+    if (!setting) {
+        throw new Error('Notification setting not found.');
+    }
+
     return setting?.sendEmail ?? false;
 };
 

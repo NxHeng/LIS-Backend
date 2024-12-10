@@ -1,5 +1,6 @@
 const caseService = require('../services/caseService');
 const notificationService = require('../services/notificationService');
+const notificationSettingService = require('../services/notificationSettingService');
 
 // Get all cases
 const getCases = async (req, res) => {
@@ -45,23 +46,33 @@ const getCase = async (req, res) => {
 const createCase = async (req, res) => {
     try {
         const caseItem = await caseService.createCase(req.body);
-
-        // Notify solicitor and clerk
-        const { solicitorInCharge, clerkInCharge, matterName } = caseItem;
-        const usersNotified = [solicitorInCharge, clerkInCharge];
-
-        try{
-            await notificationService.createAndEmitNotification(req.io, {
-                type: 'new_case',
-                message: `New case "${matterName}" has been created!`,
-                caseId: caseItem,
-                usersNotified
-            });
-        } catch (notifyError) {
-            console.error('Notification failed:', notifyError.message);
-            // Proceed without blocking case creation
+        console.log('Testttttttttttt: ', caseItem);
+        //Fetch notifcation settings for new case
+        const sendNotification = await notificationSettingService.shouldSendNotification('new_case');
+        console.log('sendNotification:', sendNotification);
+        if (sendNotification) {
+            // Notify solicitor and clerk
+            const { solicitorInCharge, clerkInCharge, matterName } = caseItem;
+            const usersNotified = [solicitorInCharge, clerkInCharge];
+            let notificationType = 'new_case';
+            let notificationMessage = `New case "${matterName}" has been created!`;
+            try {
+                await notificationService.createAndEmitNotification(req.io, {
+                    type: notificationType,
+                    message: notificationMessage,
+                    caseId: caseItem,
+                    usersNotified
+                });
+            } catch (notifyError) {
+                console.error('Notification failed:', notifyError.message);
+            }
         }
-        
+        const sendEmail = await notificationSettingService.shouldSendEmail('new_case');
+        if (sendEmail) {
+            // Send email notification
+            // EmailService.sendEmail('new_case', caseItem);
+        }
+
         res.status(201).json(caseItem);
     } catch (error) {
         res.status(400).json({ error: error.message });
@@ -95,9 +106,11 @@ const updateCase = async (req, res) => {
         // Notify solicitor and clerk of the case update
         const { solicitorInCharge, clerkInCharge, matterName, status } = updatedCase;
         const usersNotified = [solicitorInCharge, clerkInCharge];
+
+
+        // default to detail_update
         let notificationType = 'detail_update';
         let notificationMessage = `Details for case "${matterName}" have been updated!`;
-
         // Check if the status changed to 'closed'
         if (status !== originalStatus && status === 'closed') {
             notificationType = 'status_change';
@@ -105,14 +118,25 @@ const updateCase = async (req, res) => {
             // update the closedAt field and save the case
             updatedCase.closedAt = new Date();
             await updatedCase.save();
-        }   
-
-        await notificationService.createAndEmitNotification(req.io, {
-            type: notificationType,
-            message: notificationMessage,
-            caseId: updatedCase,
-            usersNotified
-        });
+        }
+        const sendNotification = await notificationSettingService.shouldSendNotification(notificationType);
+        if (sendNotification) {
+            try {
+                await notificationService.createAndEmitNotification(req.io, {
+                    type: notificationType,
+                    message: notificationMessage,
+                    caseId: updatedCase,
+                    usersNotified
+                });
+            } catch (notifyError) {
+                console.error('Notification failed:', notifyError.message);
+            }
+        }
+        const sendEmail = await notificationSettingService.shouldSendEmail(notificationType);
+        if (sendEmail) {
+            // Send email notification
+            // EmailService.sendEmail(notificationType, updatedCase);
+        }
 
         res.status(200).json(updatedCase);
     } catch (error) {
@@ -190,7 +214,7 @@ const deleteTask = async (req, res) => {
     }
 }
 
-const addLog = async (req, res) => {    
+const addLog = async (req, res) => {
     const { caseId } = req.params;
     const logData = req.body;
     try {
