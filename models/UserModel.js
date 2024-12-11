@@ -18,15 +18,19 @@ const UserSchema = new mongoose.Schema({
     },
     phone: {
         type: String,
-        required: false
+        required: false,
+        default: null
     },
     ic: {
         type: String,
-        required: false
+        required: false,
+        default: null
+
     },
     role: {
         type: String,
-        enum: ['solicitor', 'clerk', 'admin', 'pending', 'rejected', 'client', 'client-pending', 'client-rejected'],
+        // enum: ['solicitor', 'clerk', 'admin', 'pending', 'rejected', 'client', 'client-pending', 'client-rejected'],
+        enum: ['solicitor', 'clerk', 'admin', 'client'],
         default: 'pending',
         required: true,
     },

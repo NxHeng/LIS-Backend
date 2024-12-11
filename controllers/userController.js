@@ -20,6 +20,18 @@ const clientRegister = async (req, res) => {
     }
 };
 
+const userRegister = async (req, res) => {
+    const { username, email, password, phone, ic, role } = req.body;
+    try {
+        // await userService.createUser(username, email, password, phone, ic, role);
+        await userService.createUser(username, email, password, phone, ic, role);
+        await userService.sendNewAccountEmail(email, password, username, role);
+        res.status(201).json('User created');
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 
 const loginUser = async (req, res) => {
     const { email, password } = req.body;
@@ -124,6 +136,7 @@ const resetPassword = async (req, res) => {
 module.exports = {
     staffRegister,
     clientRegister,
+    userRegister,
     loginUser,
     getUserProfile,
     logoutUser,
