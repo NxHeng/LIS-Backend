@@ -9,8 +9,15 @@ const categorySchema = new Schema({
         type: String,
         required: true
     },
-    fields: [Field.schema],
-    tasks: [Task.schema]
+    // fields: [Field.schema],
+    fields: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Field'
+    }],
+    tasks: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Task'
+    }]
 }, { timestamps: true });
 
 module.exports = mongoose.model('Category', categorySchema)

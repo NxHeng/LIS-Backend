@@ -166,10 +166,10 @@ const updateTask = async (req, res) => {
         const updatedTask = await caseService.updateTask(caseId, taskId, taskData);
 
         // if task changed to completed, update the completedAt field
-        if (taskData.status === 'Completed') {
-            updatedTask.completedAt = new Date();
-            await updatedTask.save();
-        }
+        // if (taskData.status === 'Completed') {
+        //     updatedTask.completedAt = new Date();
+        //     await updatedTask.save();
+        // }
 
         res.status(200).json(updatedTask);
     } catch (error) {

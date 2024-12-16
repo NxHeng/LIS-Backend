@@ -13,7 +13,8 @@ const fieldSchema = new Schema({
     }, // e.g., 'String', 'Number', 'Date', etc.
     value: {
         type: Schema.Types.Mixed, // Mixed type allows for flexibility (e.g., String, Number, Date)
-        required: false // Optional if fields may initially lack a value
+        required: false, // Optional if fields may initially lack a value
+        default: null // Default value if not provided
     },
     remarks: {
         type: String,

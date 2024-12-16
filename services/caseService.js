@@ -140,7 +140,7 @@ const createCase = async (body) => {
             throw new Error('Invalid clerk ID');
         }
 
-        const category = await CategoryModel.findById(categoryId);
+        const category = await CategoryModel.findById(categoryId).populate('fields').populate('tasks');
         if (!category) {
             throw new Error('Category not found');
         }
@@ -158,11 +158,14 @@ const createCase = async (body) => {
             };
         });
         console.log('fields:', fields);
-        // Create new tasks with unique IDs
+        // Create new tasks with unique IDs with order from 0 to n
+        let index = 0;
         const tasks = category.tasks.map(task => {
             return {
                 ...task.toObject(),  // Copy the task object
                 _id: new mongoose.Types.ObjectId(),  // Generate a new unique ObjectId
+                status: 'Awaiting Initiation',  // Set the default status
+                order: index++  // Set the order from 0 to n
             };
         });
 
@@ -219,7 +222,11 @@ const updateCase = async (id, body) => {
             throw new Error('Invalid case ID');
         }
 
-        const caseItem = await CaseModel.findById(id);
+        const caseItem = await CaseModel.findById(id)
+            .populate('category')
+            .populate('solicitorInCharge')
+            .populate('clerkInCharge');
+
         if (!caseItem) {
             throw new Error('Case not found');
         }
@@ -236,6 +243,7 @@ const updateCase = async (id, body) => {
         caseItem.tasks = body.tasks || caseItem.tasks;
         caseItem.status = body.status || caseItem.status;
 
+        console.log('caseItem:', caseItem);
         await caseItem.save();
         return { updatedCase: caseItem, originalStatus };
     } catch (error) {
@@ -281,6 +289,15 @@ const updateTask = async (caseId, taskId, body) => {
         task.status = body.status || task.status;
         task.order = body.order || task.order;
 
+        // if the task has been updated to status 'Completed', update the task's completedAt field
+        console.log(task.status, task.completedAt);
+        if (task.status === 'Completed' && task.completedAt === null) {
+            task.completedAt = new Date();
+            console.log('task.completedAt:', task.completedAt);
+        } else if (task.status !== 'Completed') {
+            task.completedAt = null;
+        }
+        console.log('task:', task);
         // Save the case document to update the embedded task
         await caseDocument.save();
 
@@ -338,11 +355,14 @@ const getTasksByStaff = async (userId) => {
                 matterName: caseItem.matterName, // Attach the matterName to each task
             }));
 
-            // Use matterName as the key for grouping
-            if (!acc[caseItem.matterName]) {
-                acc[caseItem.matterName] = [];
+            // Use caseId as the key for grouping, and include matterName in the group object
+            if (!acc[caseItem._id]) {
+                acc[caseItem._id] = {
+                    matterName: caseItem.matterName, // Attach the matterName for display
+                    tasks: [] // Initialize the tasks array
+                };
             }
-            acc[caseItem.matterName].push(...caseTasks);
+            acc[caseItem._id].tasks.push(...caseTasks);
 
             return acc;
         }, {});

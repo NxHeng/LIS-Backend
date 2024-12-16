@@ -9,6 +9,8 @@ const socketUtils = require('./utils/socketUtils');
 const userRoutes = require('./routes/userRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
 const caseRoutes = require('./routes/caseRoutes');
+const fieldRoutes = require('./routes/fieldRoutes');
+const taskRoutes = require('./routes/taskRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const announcementRoutes = require('./routes/announcementRoutes');
 const documentRoutes = require('./routes/documentRoutes');
@@ -44,6 +46,8 @@ app.use((req, res, next) => {
 app.use('/user', userRoutes);
 app.use('/create', categoryRoutes);
 app.use('/case', caseRoutes);
+app.use('/field', fieldRoutes);
+app.use('/task', taskRoutes);
 app.use('/dashboard', dashboardRoutes);
 app.use('/announcement', announcementRoutes);
 app.use('/document', documentRoutes);
