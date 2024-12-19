@@ -26,15 +26,14 @@ const createAndEmitNotification = async (io, notificationData) => {
 const createAndEmitAnnouncement = async (io, notificationData) => {
     try {
         const { type, message, announcementId, usersNotified } = notificationData;
-        console.log("notificationData:", notificationData);
         // Save the notification in the database
         const notification = new Notification({
             type,
             message,
             announcementId,
-            usersNotified
+            usersNotified,
         });
-
+        // console.log("Emit Announcement Here", notification);
         // Emit notification using socket.io to the users
         emitAnnouncement(io, notification);
     }

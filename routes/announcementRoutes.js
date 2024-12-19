@@ -20,7 +20,7 @@ router.get('/getAnnouncement/:id', getAnnouncement);
 router.post('/createAnnouncement', fileMiddleware.single('attachment'), createAnnouncement);
 router.patch('/updateAnnouncement/:id', fileMiddleware.single('attachment'), updateAnnouncement);
 router.delete('/deleteAnnouncement/:id', deleteAnnouncement);
-router.get('/fetchAttachment/:URI', fetchAttachment);
+router.get('/fetchAttachment/:id', fetchAttachment);
 router.delete('/deleteAttachment/:URI', deleteAttachment);
 
 module.exports = router;

@@ -16,7 +16,8 @@ const initializeCronJob = (socketIoInstance) => {
     io = socketIoInstance; // Set the io instance
 
     // Schedule cron job to run every minute (or adjust as needed)
-    const taskNotificationJob = cron.schedule('* * * * *', async () => {
+    // The cron job will run every 15 minutes between 8 AM and 5 PM (*/15 8-17 * * *)
+    const taskNotificationJob = cron.schedule('* 8-17 * * *', async () => {
         console.log('Cron job running at:', moment().tz(localTimeZone).format());
         try {
             // Check notification and email settings

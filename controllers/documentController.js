@@ -3,6 +3,7 @@ const documentService = require('../services/documentService');
 const path = require('path');
 const Folder = require('../models/folderModel');
 const File = require('../models/fileModel');
+const { Readable } = require('stream'); 
 
 // Controller to upload a file
 const uploadFile = async (req, res) => {
@@ -10,14 +11,16 @@ const uploadFile = async (req, res) => {
         const { folderId, caseId, uploadedBy } = req.body;
         const file = req.file;
         // const userId = req.userId; // Assuming req.userId contains the ID of the uploader
-        console.log(req.body);
-        console.log(req.file);
+
         if (!caseId) {
             return res.status(400).send('Case ID is required.');
         }
 
         const newFile = await documentService.uploadFile(file, folderId, uploadedBy, caseId);
-        res.status(201).json({ message: 'File uploaded successfully!', file: newFile });
+        res.status(200).json({
+            message: 'File uploaded successfully',
+            file: newFile,
+        });
     } catch (error) {
         res.status(400).send(error.message);
     }
@@ -88,24 +91,57 @@ const listEverything = async (req, res) => {
 }
 
 // Controller to download a file
+// const downloadFile = async (req, res) => {
+//     try {
+//         const { fileId } = req.query;
+//         const file = await documentService.downloadFile(fileId);
+
+//         // Implement download logic based on file storage (local/cloud)
+//         const fileURI = path.join('uploads/', file.fileURI);
+//         res.download(fileURI, file.fileURI, (err) => {
+//             if (err) {
+//                 res.status(500).send({
+//                     message: "Could not download the file. " + err,
+//                 });
+//             }
+//         });
+//     } catch (error) {
+//         res.status(404).send(error.message);
+//     }
+// };
 const downloadFile = async (req, res) => {
     try {
         const { fileId } = req.query;
-        const file = await documentService.downloadFile(fileId);
 
-        // Implement download logic based on file storage (local/cloud)
-        const fileURI = path.join('uploads/', file.fileURI);
-        res.download(fileURI, file.fileURI, (err) => {
-            if (err) {
-                res.status(500).send({
-                    message: "Could not download the file. " + err,
-                });
-            }
-        });
+        // Get the signed URL for the file in Google Cloud Storage
+        const { url, fileName } = await documentService.fetchFileFromStorage(fileId);
+
+        // Fetch the file from Google Cloud Storage using the signed URL
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error('Failed to fetch file from Google Cloud Storage');
+        }
+
+        // Set the appropriate content type and send the file back to the client
+        const contentType = response.headers.get('Content-Type');
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
+        res.setHeader('Access-Control-Allow-Origin', '*'); // or specific domain
+        res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
+
+        // Convert ReadableStream (fetch) to Node.js Readable stream and pipe it to the response
+        const bodyStream = Readable.fromWeb(response.body);
+        bodyStream.pipe(res);
     } catch (error) {
-        res.status(404).send(error.message);
+        console.error('Error downloading file:', error);
+        res.status(500).send({ message: "Error downloading file: " + error.message });
     }
 };
+
+
+
+
 
 // Controller to delete a file
 const deleteFile = async (req, res) => {
@@ -155,23 +191,53 @@ const renameFile = async (req, res) => {
     }
 }
 
+// const previewFile = async (req, res) => {
+//     try {
+//         const { fileId } = req.query;
+//         console.log(fileId);
+//         const file = await documentService.previewFile(fileId);
+//         // Implement download logic based on file storage (local/cloud)
+//         const filePath = path.join(__dirname, '..', 'uploads', file.fileURI);
+//         console.log(filePath);
+//         res.sendFile(filePath, (err) => {
+//             if (err) {
+//                 res.status(500).send({
+//                     message: "Could not preview the file. " + err,
+//                 });
+//             }
+//         });
+//     } catch (error) {
+//         res.status(404).send(error.message);
+//     }
+// };
+
 const previewFile = async (req, res) => {
     try {
         const { fileId } = req.query;
-        console.log(fileId);
-        const file = await documentService.previewFile(fileId);
-        // Implement download logic based on file storage (local/cloud)
-        const filePath = path.join(__dirname, '..', 'uploads', file.fileURI);
-        console.log(filePath);
-        res.sendFile(filePath, (err) => {
-            if (err) {
-                res.status(500).send({
-                    message: "Could not preview the file. " + err,
-                });
-            }
-        });
+
+        // Get the signed URL from the service layer
+        const { url } = await documentService.fetchFileFromStorage(fileId);
+        console.log('Signed URL for file:', url); // Log the signed URL
+
+        // Use the signed URL to fetch the file from Google Cloud Storage
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error('Failed to fetch file from Google Cloud Storage');
+        }
+
+        const contentType = response.headers.get('Content-Type');
+        res.setHeader('Content-Type', contentType);
+        console.log('Content-Type:', contentType);
+
+        // Convert ReadableStream (fetch) to Node.js Readable stream
+        const bodyStream = Readable.fromWeb(response.body); // Node.js >= v16.5.0 supports `fromWeb`
+
+        // Stream the file back to the client
+        bodyStream.pipe(res);
     } catch (error) {
-        res.status(404).send(error.message);
+        console.error('Error previewing file:', error);
+        res.status(500).send({ message: "Error previewing file: " + error.message });
     }
 };
 
