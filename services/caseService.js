@@ -1,16 +1,95 @@
 const mongoose = require('mongoose');
 const CaseModel = require('../models/caseModel');
 const CategoryModel = require('../models/categoryModel');
+const Task = require('../models/taskModel');
+const nodemailer = require('nodemailer');
 
 // Get all categories
 const getCases = async () => {
     try {
-        const cases = await CaseModel.find({}).sort({ createdAt: -1 });
+        const cases = await CaseModel.find({})
+            .sort({ createdAt: -1 })
+            .populate('solicitorInCharge', 'username _id')
+            .populate('clerkInCharge', 'username _id')
+            .populate('category', 'categoryName _id')
+            .populate('logs', 'logMessage _id')
+            .exec();
+
+        const sortedTasksCases = cases.map(caseItem => {
+            caseItem.tasks = caseItem.tasks.sort((a, b) => a.order - b.order);
+            // Or, to sort by creation date:
+            // caseItem.tasks = caseItem.tasks.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+            return caseItem;
+        });
+
+        return sortedTasksCases;
+    } catch (error) {
+        throw new Error(error.message);
+    }
+};
+
+const getMyCases = async (id) => {
+    try {
+        const cases = await CaseModel.find({
+            $or: [
+                { solicitorInCharge: id },
+                { clerkInCharge: id }
+            ]
+        })
+            .sort({ createdAt: -1 })
+            .populate('solicitorInCharge', 'username _id')
+            .populate('clerkInCharge', 'username _id')
+            .populate('category', 'categoryName _id')
+            .populate('logs', 'logMessage _id')
+            .exec();
+
+        const sortedTasksCases = cases.map(caseItem => {
+            caseItem.tasks = caseItem.tasks.sort((a, b) => a.order - b.order);
+            // Or, to sort by creation date:
+            // caseItem.tasks = caseItem.tasks.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+            return caseItem;
+        });
+
+        return sortedTasksCases;
+    } catch (error) {
+        throw new Error(error.message);
+    }
+};
+
+const getCasesByClient = async (icNumber) => {
+    try {
+        const cases = await CaseModel.find({
+            clients: {
+                $elemMatch: { icNumber } // Match IC number in the clients array
+            }
+        })
+            .sort({ createdAt: -1 }) // Sort by creation date
+            .populate('solicitorInCharge', 'username _id') // Populate solicitorInCharge field
+            .populate('clerkInCharge', 'username _id') // Populate clerkInCharge field
+            .populate('category', 'categoryName _id') // Populate category field
+            .lean() // Convert Mongoose document to plain JavaScript object
+            .exec();
+
+        // Filter, sort and select only required fields from tasks
+        cases.forEach(caseItem => {
+            caseItem.tasks = caseItem.tasks
+                // .filter(task => task.status === 'Completed') // Only include completed tasks
+                .sort((a, b) => a.order - b.order) // Sort by task order
+                .map(task => ({
+                    description: task.description,
+                    status: task.status,
+                    order: task.order
+                })); // Map tasks to include only required fields
+        });
+
         return cases;
     } catch (error) {
         throw new Error(error.message);
     }
 };
+
+
+
 
 const getCase = async (id) => {
     // Check id format
@@ -18,12 +97,26 @@ const getCase = async (id) => {
         throw new Error('Case not found');
     }
     // Find case by id
-    const caseItem = await CaseModel.findById(id);
-    if (!caseItem) {
-        throw new Error('Case not found');
+    try {
+        const caseItem = await CaseModel.findById(id)
+            .populate('solicitorInCharge', 'username _id')
+            .populate('clerkInCharge', 'username _id')
+            .populate('category', 'categoryName _id')
+            .exec();
+
+        caseItem.tasks = caseItem.tasks.sort((a, b) => a.order - b.order);
+
+        if (!caseItem) {
+            throw new Error('Case not found');
+        }
+
+        return caseItem;
+    } catch (error) {
+        throw new Error(error.message);
     }
-    return caseItem;
 };
+
+
 
 const createCase = async (body) => {
     try {
@@ -38,19 +131,41 @@ const createCase = async (body) => {
         } = body;
         // check id format
         if (!mongoose.Types.ObjectId.isValid(categoryId)) {
-            throw new Error('Category not found');
+            throw new Error('Invalid category ID');
         }
-        const category = await CategoryModel.findById(categoryId);
+        if (!mongoose.Types.ObjectId.isValid(solicitorInCharge)) {
+            throw new Error('Invalid solicitor ID');
+        }
+        if (!mongoose.Types.ObjectId.isValid(clerkInCharge)) {
+            throw new Error('Invalid clerk ID');
+        }
+
+        const category = await CategoryModel.findById(categoryId).populate('fields').populate('tasks');
         if (!category) {
             throw new Error('Category not found');
         }
         // Map the field values to the template fields
         const fields = category.fields.map((templateField, index) => {
-            const value = fieldValues[index] || '';
+            const body = fieldValues[index] || '';
             return {
                 name: templateField.name,
                 type: templateField.type,
-                value: value // Include the value in the field object
+                value: body.value,
+                remarks: body.remarks,
+                tel: body.tel,
+                email: body.email,
+                fax: body.fax
+            };
+        });
+        console.log('fields:', fields);
+        // Create new tasks with unique IDs with order from 0 to n
+        let index = 0;
+        const tasks = category.tasks.map(task => {
+            return {
+                ...task.toObject(),  // Copy the task object
+                _id: new mongoose.Types.ObjectId(),  // Generate a new unique ObjectId
+                status: 'Awaiting Initiation',  // Set the default status
+                order: index++  // Set the order from 0 to n
             };
         });
 
@@ -62,7 +177,7 @@ const createCase = async (body) => {
             clients,
             category: categoryId,
             fields: fields,
-            tasks: category.tasks
+            tasks: tasks
         });
         const caseItem = await newCase.save();
         return caseItem;
@@ -89,7 +204,8 @@ const addTask = async (caseId, body) => {
             dueDate: body.dueDate ? new Date(body.dueDate) : null,
             reminder: body.reminder ? new Date(body.reminder) : null,
             remark: body.remark,
-            status: body.status || 'Awaiting Initiation'
+            status: body.status || 'Awaiting Initiation',
+            order: body.order || 0
         };
         caseDocument.tasks.push(newTask);
         await caseDocument.save();
@@ -106,10 +222,16 @@ const updateCase = async (id, body) => {
             throw new Error('Invalid case ID');
         }
 
-        const caseItem = await CaseModel.findById(id);
+        const caseItem = await CaseModel.findById(id)
+            .populate('category')
+            .populate('solicitorInCharge')
+            .populate('clerkInCharge');
+
         if (!caseItem) {
             throw new Error('Case not found');
         }
+
+        const originalStatus = caseItem.status; // Save original status before update
 
         caseItem.matterName = body.matterName || caseItem.matterName;
         caseItem.fileReference = body.fileReference || caseItem.fileReference;
@@ -121,8 +243,9 @@ const updateCase = async (id, body) => {
         caseItem.tasks = body.tasks || caseItem.tasks;
         caseItem.status = body.status || caseItem.status;
 
+        console.log('caseItem:', caseItem);
         await caseItem.save();
-        return caseItem;
+        return { updatedCase: caseItem, originalStatus };
     } catch (error) {
         console.error('Error updating case:', error);
         throw new Error('Error updating case');
@@ -149,14 +272,32 @@ const updateTask = async (caseId, taskId, body) => {
             throw new Error('Task not found');
         }
 
-        // Update the task properties
+        // Check if the `dueDate` or `reminder` has been changed
+        if (body.dueDate && body.dueDate !== task.dueDate?.toISOString()) {
+            task.dueDate = body.dueDate;
+            task.dueDateNotificationSent = false;
+        }
+        if (body.reminder && body.reminder !== task.reminder?.toISOString()) {
+            task.reminder = body.reminder;
+            task.reminderNotificationSent = false;
+        }
+
+        // Update other task properties
         task.description = body.description || task.description;
         task.initiationDate = body.initiationDate || task.initiationDate;
-        task.dueDate = body.dueDate || task.dueDate;
-        task.reminder = body.reminder || task.reminder;
         task.remark = body.remark || task.remark;
         task.status = body.status || task.status;
+        task.order = body.order || task.order;
 
+        // if the task has been updated to status 'Completed', update the task's completedAt field
+        console.log(task.status, task.completedAt);
+        if (task.status === 'Completed' && task.completedAt === null) {
+            task.completedAt = new Date();
+            console.log('task.completedAt:', task.completedAt);
+        } else if (task.status !== 'Completed') {
+            task.completedAt = null;
+        }
+        console.log('task:', task);
         // Save the case document to update the embedded task
         await caseDocument.save();
 
@@ -166,6 +307,73 @@ const updateTask = async (caseId, taskId, body) => {
         throw new Error('Error updating task');
     }
 }
+
+const updateTasksOrder = async (caseId, tasks) => {
+    try {
+        // Check if the case ID is valid
+        if (!mongoose.Types.ObjectId.isValid(caseId)) {
+            throw new Error('Invalid case ID');
+        }
+        const bulkOperations = tasks.map(task => ({
+            updateOne: {
+                filter: { 'tasks._id': task._id }, // Find the task by its _id
+                update: { 'tasks.$.order': task.order }, // Update the order
+            }
+        }));
+
+        // Execute bulkWrite operation on the CaseModel
+        const newOrderTasks = await CaseModel.bulkWrite(bulkOperations);
+
+        return newOrderTasks;
+    } catch (error) {
+        console.error('Failed to update tasks order:', error);
+        throw new Error('Error updating tasks order');
+    }
+}
+
+const getTasksByStaff = async (userId) => {
+    try {
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+            throw new Error('Invalid user ID');
+        }
+        // Find all cases where the solicitorInCharge or clerkInCharge matches the given userId, and the case is not closed
+        const cases = await CaseModel.find({
+            $or: [{ solicitorInCharge: userId }, { clerkInCharge: userId }],
+            status: { $ne: 'closed' }
+        })
+            .populate('solicitorInCharge', 'username _id')
+            .populate('clerkInCharge', 'username _id')
+            .populate('category', 'categoryName _id')
+            .exec();
+
+        // Extract and group tasks by matterId (or matterName)
+        const tasksGroupedByMatter = cases.reduce((acc, caseItem) => {
+            const caseTasks = caseItem.tasks.map(task => ({
+                ...task.toObject(),
+                caseId: caseItem._id, // Attach the caseId to each task
+                clients: caseItem.clients, // Attach the clients to each task
+                matterName: caseItem.matterName, // Attach the matterName to each task
+            }));
+
+            // Use caseId as the key for grouping, and include matterName in the group object
+            if (!acc[caseItem._id]) {
+                acc[caseItem._id] = {
+                    matterName: caseItem.matterName, // Attach the matterName for display
+                    tasks: [] // Initialize the tasks array
+                };
+            }
+            acc[caseItem._id].tasks.push(...caseTasks);
+
+            return acc;
+        }, {});
+
+        return tasksGroupedByMatter;
+    } catch (error) {
+        throw new Error(error.message);
+    }
+};
+
+
 
 const deleteTask = async (caseId, taskId) => {
     try {
@@ -189,12 +397,485 @@ const deleteTask = async (caseId, taskId) => {
     }
 }
 
+const addLog = async (caseId, logData) => {
+    try {
+        if (!mongoose.Types.ObjectId.isValid(caseId)) {
+            throw new Error('Invalid case ID');
+        }
+
+        const updatedCase = await CaseModel.findByIdAndUpdate(
+            caseId,
+            {
+                $push: {
+                    logs: { logMessage: logData.logMessage, createdBy: logData.createdBy },
+                },
+            },
+            { new: true }
+        );
+
+        if (!updatedCase) {
+            throw new Error('Case not found');
+        }
+
+        return updatedCase;
+    } catch (error) {
+        console.error('Error adding log:', error);
+        throw error;
+    }
+};
+
+
+const editLog = async (caseId, logId, logMessage) => {
+    try {
+        if (!mongoose.Types.ObjectId.isValid(caseId) || !mongoose.Types.ObjectId.isValid(logId)) {
+            throw new Error('Invalid ID');
+        }
+
+        const caseItem = await CaseModel.findById(caseId);
+        if (!caseItem) {
+            throw new Error('Case not found');
+        }
+
+        const log = caseItem.logs.id(logId);
+        if (!log) {
+            throw new Error('Log not found');
+        }
+
+        log.message = logMessage;
+        await caseItem.save();
+
+        return caseItem;
+    } catch (error) {
+        console.error('Error editing log:', error);
+        throw error;
+    }
+};
+
+
+const deleteLog = async (caseId, logId) => {
+    try {
+        if (!mongoose.Types.ObjectId.isValid(caseId) || !mongoose.Types.ObjectId.isValid(logId)) {
+            throw new Error('Invalid ID');
+        }
+
+        const updatedCase = await CaseModel.findByIdAndUpdate(
+            caseId,
+            {
+                $pull: { logs: { _id: logId } },
+            },
+            { new: true }
+        );
+
+        if (!updatedCase) {
+            throw new Error('Case not found');
+        }
+
+        return updatedCase;
+    } catch (error) {
+        console.error('Error deleting log:', error);
+        throw error;
+    }
+};
+
+const sendNewCaseEmail = async (caseId) => {
+    try {
+        if (!mongoose.Types.ObjectId.isValid(caseId)) {
+            throw new Error('Invalid case ID');
+        }
+        // Get the case details
+        const caseItem = await CaseModel.findById(caseId)
+            .populate('solicitorInCharge', 'username email _id')
+            .populate('clerkInCharge', 'username email _id')
+            .populate('category', 'categoryName _id')
+            .exec();
+        // Send email to solicitorInCharge
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS
+            }
+        });
+
+        const caseDetailsUrl = `${process.env.FRONTEND_URL}/cases/details/${caseId}`;
+        console.log('caseDetailsUrl:', caseDetailsUrl);
+        console.log(process.env.EMAIL_USER);
+        console.log(`${caseItem.solicitorInCharge.email}, ${caseItem.clerkInCharge.email}`);
+
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: `${caseItem.solicitorInCharge.email}, ${caseItem.clerkInCharge.email}`,
+            subject: 'New Case Created (Legal Information System)',
+            html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
+            <div style="background-color: #4CAF50; color: white; padding: 20px; text-align: center;">
+                <h1 style="margin: 0;">Legal Information System</h1>
+                <p style="margin: 0;">New Case Created</p>
+            </div>
+            <div style="padding: 20px; line-height: 1.6; color: #333;">
+                <p>Hello,</p>
+                <p>
+                    A new case titled "<strong>${caseItem.matterName}</strong>" has been created in the system.
+                    The solicitor assigned to this case is <strong>${caseItem.solicitorInCharge.username}</strong>. While the clerk assigned is <strong>${caseItem.clerkInCharge.username}</strong>.
+                    The case is under the category of <strong>${caseItem.category.categoryName}</strong>.
+                </p>
+                <div style="text-align: center; margin: 20px 0;">
+                    <a href="${caseDetailsUrl}" style="display: inline-block; padding: 10px 20px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px; font-size: 16px;">
+                        View Case Details
+                    </a>
+                </div>
+                <p>If the button above does not work, please copy and paste the following link into your browser:</p>
+                <p style="word-break: break-all; color: #4CAF50;">${caseDetailsUrl}</p>
+                <p>
+                    If you have any questions or require further assistance, please contact the system administrator.
+                </p>
+                <p>Thank you,<br>The Legal Information System Team</p>
+            </div>
+            <div style="background-color: #f4f4f4; color: #666; padding: 10px; text-align: center; font-size: 12px;">
+                <p style="margin: 0;">© ${new Date().getFullYear()} Legal Information System. All Rights Reserved.</p>
+            </div>
+        </div>
+    `,
+        };
+
+        return transporter.sendMail(mailOptions, (error, info) => {
+            if (error) {
+                console.error("Error sending email: ", error);
+            } else {
+                console.log("Email sent: ", info.response);
+            }
+        });
+    } catch (error) {
+        console.error('Error sending email:', error);
+        throw new Error('Error sending email');
+    }
+};
+
+const sendUpdateDetailEmail = async (caseId) => {
+    try {
+        if (!mongoose.Types.ObjectId.isValid(caseId)) {
+            throw new Error('Invalid case ID');
+        }
+        // Get the case details
+        const caseItem = await CaseModel.findById(caseId)
+            .populate('solicitorInCharge', 'username email _id')
+            .populate('clerkInCharge', 'username email _id')
+            .populate('category', 'categoryName _id')
+            .exec();
+
+        // Send email to solicitorInCharge and clerkInCharge
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS
+            }
+        });
+
+        const caseDetailsUrl = `${process.env.FRONTEND_URL}/cases/details/${caseId}`;
+        console.log('caseDetailsUrl:', caseDetailsUrl);
+        console.log(process.env.EMAIL_USER);
+        console.log(`${caseItem.solicitorInCharge.email}, ${caseItem.clerkInCharge.email}`);
+
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: `${caseItem.solicitorInCharge.email}, ${caseItem.clerkInCharge.email}`,
+            subject: 'Case Details Updated (Legal Information System)',
+            html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
+            <div style="background-color: #4CAF50; color: white; padding: 20px; text-align: center;">
+                <h1 style="margin: 0;">Legal Information System</h1>
+                <p style="margin: 0;">Case Details Updated</p>
+            </div>
+            <div style="padding: 20px; line-height: 1.6; color: #333;">
+                <p>Hello,</p>
+                <p>
+                    The details for the case titled "<strong>${caseItem.matterName}</strong>" have been updated in the system.
+                </p>
+                <p>
+                    Solicitor in Charge: <strong>${caseItem.solicitorInCharge.username}</strong><br>
+                    Clerk in Charge: <strong>${caseItem.clerkInCharge.username}</strong><br>
+                    Category: <strong>${caseItem.category?.categoryName || "N/A"}</strong>
+                </p>
+                <div style="text-align: center; margin: 20px 0;">
+                    <a href="${caseDetailsUrl}" style="display: inline-block; padding: 10px 20px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px; font-size: 16px;">
+                        View Updated Case Details
+                    </a>
+                </div>
+                <p>If the button above does not work, please copy and paste the following link into your browser:</p>
+                <p style="word-break: break-all; color: #4CAF50;">${caseDetailsUrl}</p>
+                <p>
+                    If you have any questions or require further assistance, please contact the system administrator.
+                </p>
+                <p>Thank you,<br>The Legal Information System Team</p>
+            </div>
+            <div style="background-color: #f4f4f4; color: #666; padding: 10px; text-align: center; font-size: 12px;">
+                <p style="margin: 0;">© ${new Date().getFullYear()} Legal Information System. All Rights Reserved.</p>
+            </div>
+        </div>
+    `,
+        };
+
+        return transporter.sendMail(mailOptions, (error, info) => {
+            if (error) {
+                console.error("Error sending email: ", error);
+            } else {
+                console.log("Email sent: ", info.response);
+            }
+        });
+    } catch (error) {
+        console.error('Error sending email:', error);
+        throw new Error('Error sending email');
+    }
+};
+
+const sendCaseClosedEmail = async (caseId) => {
+    try {
+        if (!mongoose.Types.ObjectId.isValid(caseId)) {
+            throw new Error('Invalid case ID');
+        }
+        // Get the case details
+        const caseItem = await CaseModel.findById(caseId)
+            .populate('solicitorInCharge', 'username email _id')
+            .populate('clerkInCharge', 'username email _id')
+            .populate('category', 'categoryName _id')
+            .exec();
+
+        // Send email to solicitorInCharge and clerkInCharge
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS
+            }
+        });
+
+        const caseDetailsUrl = `${process.env.FRONTEND_URL}/cases/details/${caseId}`;
+        console.log('caseDetailsUrl:', caseDetailsUrl);
+        console.log(process.env.EMAIL_USER);
+        console.log(`${caseItem.solicitorInCharge.email}, ${caseItem.clerkInCharge.email}`);
+
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: `${caseItem.solicitorInCharge.email}, ${caseItem.clerkInCharge.email}`,
+            subject: `Case Closed (Legal Information System)`,
+            html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
+            <div style="background-color: #D32F2F; color: white; padding: 20px; text-align: center;">
+                <h1 style="margin: 0;">Legal Information System</h1>
+                <p style="margin: 0;">Case Closed</p>
+            </div>
+            <div style="padding: 20px; line-height: 1.6; color: #333;">
+                <p>Hello,</p>
+                <p>
+                    The case titled "<strong>${caseItem.matterName}</strong>" has been marked as <strong>Closed</strong>.
+                </p>
+                <p>
+                    Solicitor in Charge: <strong>${caseItem.solicitorInCharge.username}</strong><br>
+                    Clerk in Charge: <strong>${caseItem.clerkInCharge.username}</strong><br>
+                    Category: <strong>${caseItem.category?.categoryName || "N/A"}</strong>
+                </p>
+                <div style="text-align: center; margin: 20px 0;">
+                    <a href="${caseDetailsUrl}" style="display: inline-block; padding: 10px 20px; background-color: #D32F2F; color: white; text-decoration: none; border-radius: 5px; font-size: 16px;">
+                        View Case Details
+                    </a>
+                </div>
+                <p>If the button above does not work, please copy and paste the following link into your browser:</p>
+                <p style="word-break: break-all; color: #D32F2F;">${caseDetailsUrl}</p>
+                <p>
+                    If you have any questions or require further assistance, please contact the system administrator.
+                </p>
+                <p>Thank you,<br>The Legal Information System Team</p>
+            </div>
+            <div style="background-color: #f4f4f4; color: #666; padding: 10px; text-align: center; font-size: 12px;">
+                <p style="margin: 0;">© ${new Date().getFullYear()} Legal Information System. All Rights Reserved.</p>
+            </div>
+        </div>
+    `,
+        };
+
+        return transporter.sendMail(mailOptions, (error, info) => {
+            if (error) {
+                console.error("Error sending email: ", error);
+            } else {
+                console.log("Email sent: ", info.response);
+            }
+        });
+    } catch (error) {
+        console.error('Error sending email:', error);
+        throw new Error('Error sending email');
+    }
+};
+
+const sendDeadlineEmail = async (caseId, task) => {
+    try {
+        if (!mongoose.Types.ObjectId.isValid(caseId)) {
+            throw new Error('Invalid case ID');
+        }
+        // Get the case details
+        const caseItem = await CaseModel.findById(caseId)
+            .populate('solicitorInCharge', 'username email _id')
+            .populate('clerkInCharge', 'username email _id')
+            .populate('category', 'categoryName _id')
+            .exec();
+
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS
+            }
+        });
+
+        const caseDetailsUrl = `${process.env.FRONTEND_URL}/cases/details/${caseId}`;
+
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: `${caseItem.solicitorInCharge.email}, ${caseItem.clerkInCharge.email}`,
+            subject: `Task Deadline Reminder (Legal Information System)`,
+            html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
+            <div style="background-color: #FF9800; color: white; padding: 20px; text-align: center;">
+                <h1 style="margin: 0;">Legal Information System</h1>
+                <p style="margin: 0;">Task Deadline Approaching</p>
+            </div>
+            <div style="padding: 20px; line-height: 1.6; color: #333;">
+                <p>Hello,</p>
+                <p>
+                    The task "<strong>${task.description}</strong>" in the case "<strong>${caseItem.matterName}</strong>" is due soon.
+                </p>
+                <p>
+                    Task Description: <strong>${task.description}</strong><br>
+                    Due Date: <strong>${task.dueDate}</strong><br>
+                </p>
+                <div style="text-align: center; margin: 20px 0;">
+                    <a href="${caseDetailsUrl}" style="display: inline-block; padding: 10px 20px; background-color: #FF9800; color: white; text-decoration: none; border-radius: 5px; font-size: 16px;">
+                        View Case Details
+                    </a>
+                </div>
+                <p>If the button above does not work, please copy and paste the following link into your browser:</p>
+                <p style="word-break: break-all; color: #FF9800;">${caseDetailsUrl}</p>
+                <p>
+                    If you have any questions or require further assistance, please contact the system administrator.
+                </p>
+                <p>Thank you,<br>The Legal Information System Team</p>
+            </div>
+            <div style="background-color: #f4f4f4; color: #666; padding: 10px; text-align: center; font-size: 12px;">
+                <p style="margin: 0;">© ${new Date().getFullYear()} Legal Information System. All Rights Reserved.</p>
+            </div>
+        </div>
+    `,
+        };
+
+        return transporter.sendMail(mailOptions, (error, info) => {
+            if (error) {
+                console.error("Error sending email: ", error);
+            } else {
+                console.log("Email sent: ", info.response);
+            }
+        }
+        );
+    } catch (error) {
+        console.error('Error sending email:', error);
+        throw new Error('Error sending email');
+    }
+};
+
+const sendReminderEmail = async (caseId, task) => {
+    try {
+        if (!mongoose.Types.ObjectId.isValid(caseId)) {
+            throw new Error('Invalid case ID');
+        }
+        // Get the case details
+        const caseItem = await CaseModel.findById(caseId)
+            .populate('solicitorInCharge', 'username email _id')
+            .populate('clerkInCharge', 'username email _id')
+            .populate('category', 'categoryName _id')
+            .exec();
+
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS
+            }
+        });
+
+        const caseDetailsUrl = `${process.env.FRONTEND_URL}/cases/details/${caseId}`;
+
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: `${caseItem.solicitorInCharge.email}, ${caseItem.clerkInCharge.email}`,
+            subject: `Task Deadline Reminder (Legal Information System)`,
+            html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
+            <div style="background-color: #FF9800; color: white; padding: 20px; text-align: center;">
+                <h1 style="margin: 0;">Legal Information System</h1>
+                <p style="margin: 0;">Task Reminder</p>
+            </div>
+            <div style="padding: 20px; line-height: 1.6; color: #333;">
+                <p>Hello,</p>
+                <p>
+                    You have a reminder for the task "<strong>${task.description}</strong>" in the case "<strong>${caseItem.matterName}</strong>".
+                </p>
+                <p>
+                    Task Description: <strong>${task.description}</strong><br>
+                    Due Date: <strong>${task.dueDate}</strong><br>
+                    Reminder Date: <strong>${task.reminder}</strong><br>
+                </p>
+                <div style="text-align: center; margin: 20px 0;">
+                    <a href="${caseDetailsUrl}" style="display: inline-block; padding: 10px 20px; background-color: #FF9800; color: white; text-decoration: none; border-radius: 5px; font-size: 16px;">
+                        View Case Details
+                    </a>
+                </div>
+                <p>If the button above does not work, please copy and paste the following link into your browser:</p>
+                <p style="word-break: break-all; color: #FF9800;">${caseDetailsUrl}</p>
+                <p>
+                    If you have any questions or require further assistance, please contact the system administrator.
+                </p>
+                <p>Thank you,<br>The Legal Information System Team</p>
+            </div>
+            <div style="background-color: #f4f4f4; color: #666; padding: 10px; text-align: center; font-size: 12px;">
+                <p style="margin: 0;">© ${new Date().getFullYear()} Legal Information System. All Rights Reserved.</p>
+            </div>
+        </div>
+    `,
+        };
+
+        return transporter.sendMail(mailOptions, (error, info) => {
+            if (error) {
+                console.error("Error sending email: ", error);
+            } else {
+                console.log("Email sent: ", info.response);
+            }
+        }
+        );
+    } catch (error) {
+        console.error('Error sending email:', error);
+        throw new Error('Error sending email');
+    }
+};
+
+
 module.exports = {
     getCases,
+    getMyCases,
+    getCasesByClient,
     getCase,
     createCase,
     updateCase,
+    updateTasksOrder,
     addTask,
     updateTask,
-    deleteTask
+    getTasksByStaff,
+    deleteTask,
+    addLog,
+    editLog,
+    deleteLog,
+    sendNewCaseEmail,
+    sendUpdateDetailEmail,
+    sendCaseClosedEmail,
+    sendDeadlineEmail,
+    sendReminderEmail,
+
 };

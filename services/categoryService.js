@@ -4,7 +4,7 @@ const CategoryModel = require('../models/categoryModel');
 // Get all categories
 const getCategories = async () => {
     try {
-        const categories = await CategoryModel.find({}).sort({ createdAt: -1 });
+        const categories = await CategoryModel.find({}).sort({ createdAt: -1 }).populate('fields').populate('tasks');
         return categories;
     } catch (error) {
         throw new Error(error.message);
@@ -18,7 +18,7 @@ const getCategory = async (id) => {
         throw new Error('Category not found');
     }
     // Find category by id
-    const category = await CategoryModel.findById(id);
+    const category = await CategoryModel.findById(id).populate('fields').populate('tasks');
     if (!category) {
         throw new Error('Category not found');
     }
@@ -70,7 +70,7 @@ const updateField = async (categoryId, fieldId, updateData) => {
         throw new Error('Category not found');
     }
     return category;
-}   
+}
 
 // Update a task
 const updateTask = async (categoryId, taskId, updateData) => {

@@ -10,7 +10,31 @@ const fieldSchema = new Schema({
     type: {
         type: String,
         required: true
-    } // e.g., 'String', 'Number', 'Date', etc.
+    }, // e.g., 'String', 'Number', 'Date', etc.
+    value: {
+        type: Schema.Types.Mixed, // Mixed type allows for flexibility (e.g., String, Number, Date)
+        required: false, // Optional if fields may initially lack a value
+        default: null // Default value if not provided
+    },
+    remarks: {
+        type: String,
+        required: false
+    },
+    tel: {
+        type: String,
+        required: false
+    },
+    email: {
+        type: String,
+        required: false
+    },
+    fax: {
+        type: String,
+        required: false
+    }
 });
 
-module.exports = mongoose.model('Field', fieldSchema);
+// Check if the model is already compiled to avoid recompilation
+const FieldModel = mongoose.models.Field || mongoose.model('Field', fieldSchema);
+
+module.exports = FieldModel;

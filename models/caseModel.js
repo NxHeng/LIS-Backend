@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Task = require('./taskModel');
 const Field = require('./fieldModel');
+const Log = require('./logModel');
 
 const Schema = mongoose.Schema;
 
@@ -14,30 +15,48 @@ const caseSchema = new Schema({
         required: true
     },
     solicitorInCharge: {
-        type: String,
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
         required: true
     },
     clerkInCharge: {
-        type: String,
-        required: true
-    },
-    clients: {
-        type: [String], //
-        required: true
-    },
-    category: {
         type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+    clients: [
+        {
+            name: {
+                type: String,
+                required: true
+            },
+            icNumber: {
+                type: String,
+                required: true,
+                // validate: {
+                //     validator: function (v) {
+                //         return /^\d{6}-\d{2}-\d{4}$/.test(v);
+                //     },
+                //     message: props => `${props.value} is not a valid IC number!`
+                // }
+            }
+        }
+    ],
+    category: {
+        type: mongoose.Schema.Types.ObjectId, 
         ref: 'Category',
         required: true
     },
-    fields: [{
-        name: String, // Name of the field
-        value: Schema.Types.Mixed // Dynamic value that can be of any type
-    }],
+    fields: [Field.schema],
     tasks: [Task.schema],
     status: {
         type: String,
         default: 'Active'
+    },
+    logs: [Log.schema],
+    closedAt: {
+        type: Date,
+        default: null
     }
 
 }, { timestamps: true });

@@ -9,19 +9,39 @@ const taskSchema = new Schema({
     },
     initiationDate: {
         type: Date,
+        default: null,
     },
     dueDate: {
         type: Date,
+        default: null,
     },
     reminder: {
         type: Date,
+        default: null,
     },
     remark: {
-        type: String
+        type: String,
+        default: null,
     },
     status: {
         type: String,
         default: 'Awaiting Initiation'
+    },
+    order: {
+        type: Number,
+        default: 0
+    },
+    dueDateNotificationSent: {
+        type: Boolean,
+        default: false
+    },
+    reminderNotificationSent: {
+        type: Boolean,
+        default: false
+    },
+    completedAt: {
+        type: Date,
+        default: null
     }
 }, { timestamps: true });
 
