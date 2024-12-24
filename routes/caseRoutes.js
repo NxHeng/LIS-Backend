@@ -9,6 +9,7 @@ const {
     updateTask,
     updateTasksOrder,
     getTasksByStaff,
+    getAllTasks,
     getCasesByClient,
     deleteTask,
     addLog,
@@ -28,6 +29,7 @@ router.post('/addTask/:caseId', addTask);
 router.patch('/updateTask/:caseId/:taskId', updateTask);
 router.patch('/updateTasksOrder/:caseId', updateTasksOrder);
 router.get('/getTasksByStaff/:id', getTasksByStaff);
+router.get('/getAllTasks', getAllTasks);
 router.delete('/deleteTask/:caseId/:taskId', deleteTask);
 router.patch('/updateCase/:id', updateCase);
 router.post('/addLog/:caseId', addLog);

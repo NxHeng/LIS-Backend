@@ -31,7 +31,11 @@ const fieldSchema = new Schema({
     fax: {
         type: String,
         required: false
-    }
+    },
+    order: {
+        type: Number,
+        required: false
+    },
 });
 
 // Check if the model is already compiled to avoid recompilation

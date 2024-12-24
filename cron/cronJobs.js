@@ -1,11 +1,12 @@
 const cron = require('node-cron');
 const Case = require('../models/caseModel');
+const userService = require('../services/userService');
 const notificationService = require('../services/notificationService');
 const notificationSettingService = require('../services/notificationSettingService');
 const caseService = require('../services/caseService');
 const moment = require('moment-timezone'); // Use moment-timezone for time zone handling
 
-// Set your local time zone (for example, Malaysia)
+// Set your local time zone 
 const localTimeZone = 'Asia/Kuala_Lumpur';
 
 // Declare the io variable
@@ -17,8 +18,8 @@ const initializeCronJob = (socketIoInstance) => {
 
     // Schedule cron job to run every minute (or adjust as needed)
     // The cron job will run every 15 minutes between 8 AM and 5 PM (*/15 8-17 * * *)
-    const taskNotificationJob = cron.schedule('* 8-17 * * *', async () => {
-        console.log('Cron job running at:', moment().tz(localTimeZone).format());
+    const taskNotificationJob = cron.schedule('* * * * *', async () => {
+        console.log('Task Notification Job running at:', moment().tz(localTimeZone).format());
         try {
             // Check notification and email settings
             const sendDeadlineNotification = await notificationSettingService.shouldSendNotification('deadline');
@@ -38,9 +39,18 @@ const initializeCronJob = (socketIoInstance) => {
                 // Get the current time in the local time zone
                 const currentLocalTime = moment().tz(localTimeZone);
 
+                // Fetch all admin users
+                const adminUsers = await userService.getAdminList();
+                const adminIds = adminUsers.map(admin => admin._id);
+                const normalizeUserId = (id) => id?.toString().trim();
+
                 for (const caseItem of cases) {
                     const { solicitorInCharge, clerkInCharge } = caseItem;
-                    const usersNotified = [solicitorInCharge, clerkInCharge];
+                    // Normalize and deduplicate user IDs
+                    const usersNotifiedSet = new Set(
+                        [solicitorInCharge, clerkInCharge, ...adminIds].map(normalizeUserId)
+                    );
+                    const usersNotified = Array.from(usersNotifiedSet).filter(Boolean);
 
                     let caseModified = false; // Track if the case has been modified
 
@@ -115,8 +125,20 @@ const initializeCronJob = (socketIoInstance) => {
         }
     });
 
+    // taskDueJob that runs only once every day at 08:00 AM
+    const taskDueJob = cron.schedule('0 8 * * *', async () => {
+        console.log('Task Due Job running at:', moment().tz(localTimeZone).format());
+        try {
+            await caseService.getAllTasksAndUpdateOverdue();
+        } catch (error) {
+            console.error('Error in overdue task cron job:', error);
+        }
+    });
+
+
     // Start the cron job
     taskNotificationJob.start();
+    taskDueJob.start();
 };
 
 module.exports = {

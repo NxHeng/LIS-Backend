@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const CategoryModel = require('../models/categoryModel');
+const FieldModel = require('../models/fieldModel');
 
 // Get all categories
 const getCategories = async () => {
@@ -26,14 +27,36 @@ const getCategory = async (id) => {
 };
 
 // Create a new category
-const createCategory = async (categoryName, fields, tasks) => {
+// const createCategory = async (categoryName, fields, tasks) => {
+//     try {
+//         const categoryModel = await CategoryModel.create({ categoryName, fields, tasks });
+//         return categoryModel;
+//     } catch (error) {
+//         throw new Error(error.message);
+//     }
+// };
+const createCategory = async (categoryName, selectedFields, tasks) => {
     try {
-        const categoryModel = await CategoryModel.create({ categoryName, fields, tasks });
+        const categoryModel = await CategoryModel.create({ categoryName, tasks });
+        const fieldOrders = selectedFields.map((fieldId, index) => ({
+            fieldId,      
+            order: index + 1   
+        }));
+
+        categoryModel.fields = selectedFields; 
+        categoryModel.fieldOrders = fieldOrders; 
+
+        await categoryModel.save();
+
         return categoryModel;
     } catch (error) {
         throw new Error(error.message);
     }
 };
+
+
+
+
 
 // Update a category
 const updateCategory = async (id, updateData) => {

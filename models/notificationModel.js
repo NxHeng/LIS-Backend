@@ -3,6 +3,11 @@ const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
 const notificationSchema = new Schema({
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        // required: true
+    },
     type: { type: String, required: true }, // 'deadline', 'reminder', 'new_case', 'detail_update', 'status_change'
     message: { 
         type: String, 

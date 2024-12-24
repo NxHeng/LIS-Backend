@@ -1,3 +1,4 @@
+const userService = require('../services/userService');
 const caseService = require('../services/caseService');
 const notificationService = require('../services/notificationService');
 const notificationSettingService = require('../services/notificationSettingService');
@@ -51,7 +52,19 @@ const createCase = async (req, res) => {
         if (sendNotification) {
             // Notify solicitor and clerk
             const { solicitorInCharge, clerkInCharge, matterName } = caseItem;
-            const usersNotified = [solicitorInCharge, clerkInCharge];
+
+            // Fetch all admin users
+            const adminUsers = await userService.getAdminList();
+            const adminIds = adminUsers.map(admin => admin._id);
+
+            const normalizeUserId = (id) => id?.toString().trim();
+            // Normalize and deduplicate user IDs
+            const usersNotifiedSet = new Set(
+                [solicitorInCharge, clerkInCharge, ...adminIds].map(normalizeUserId)
+            );
+            const usersNotified = Array.from(usersNotifiedSet).filter(Boolean);
+
+
             let notificationType = 'new_case';
             let notificationMessage = `New case "${matterName}" has been created!`;
             try {
@@ -106,8 +119,17 @@ const updateCase = async (req, res) => {
 
         // Notify solicitor and clerk of the case update
         const { solicitorInCharge, clerkInCharge, matterName, status } = updatedCase;
-        const usersNotified = [solicitorInCharge, clerkInCharge];
 
+        // Fetch all admin users
+        const adminUsers = await userService.getAdminList();
+        const adminIds = adminUsers.map(admin => admin._id);
+        const normalizeUserId = (id) => id?.toString().trim();
+        // Normalize and deduplicate user IDs
+        const usersNotifiedSet = new Set(
+            [solicitorInCharge._id, clerkInCharge._id, ...adminIds].map(normalizeUserId)
+        );
+        const usersNotified = Array.from(usersNotifiedSet).filter(Boolean);
+        console.log('Users notified:', usersNotified);
 
         // default to detail_update
         let notificationType = 'detail_update';
@@ -210,6 +232,16 @@ const getTasksByStaff = async (req, res) => {
     }
 }
 
+const getAllTasks = async (req, res) => {
+    try {
+        const tasks = await caseService.getAllTasks();
+        res.status(200).json(tasks);
+    } catch (error) {
+        console.error('Error getting tasks:', error);
+        res.status(500).send({ message: error.message });
+    }
+}
+
 const deleteTask = async (req, res) => {
     const { caseId, taskId } = req.params;
     try {
@@ -279,6 +311,7 @@ module.exports = {
     updateTask,
     updateTasksOrder,
     getTasksByStaff,
+    getAllTasks,
     deleteTask,
     addLog,
     editLog,
