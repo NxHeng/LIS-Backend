@@ -3,6 +3,10 @@ const CaseModel = require('../models/caseModel');
 const CategoryModel = require('../models/categoryModel');
 const Task = require('../models/taskModel');
 const nodemailer = require('nodemailer');
+const userService = require('./userService');
+const moment = require('moment-timezone');
+
+const localTimeZone = 'Asia/Kuala_Lumpur';
 
 // Get all categories
 const getCases = async () => {
@@ -243,7 +247,7 @@ const updateCase = async (id, body) => {
         caseItem.tasks = body.tasks || caseItem.tasks;
         caseItem.status = body.status || caseItem.status;
 
-        console.log('caseItem:', caseItem);
+        // console.log('caseItem:', caseItem);
         await caseItem.save();
         return { updatedCase: caseItem, originalStatus };
     } catch (error) {
@@ -372,6 +376,84 @@ const getTasksByStaff = async (userId) => {
         throw new Error(error.message);
     }
 };
+
+const getAllTasks = async () => {
+    try {
+        // find all active cases and their tasks
+        const cases = await CaseModel.find({ status: { $ne: 'closed' } })
+            .populate('solicitorInCharge', 'username _id')
+            .populate('clerkInCharge', 'username _id')
+            .populate('category', 'categoryName _id')
+            .exec();
+
+        // Extract and group tasks by matterId (or matterName)
+        const tasksGroupedByMatter = cases.reduce((acc, caseItem) => {
+            const caseTasks = caseItem.tasks.map(task => ({
+                ...task.toObject(),
+                caseId: caseItem._id, // Attach the caseId to each task
+                clients: caseItem.clients, // Attach the clients to each task
+                matterName: caseItem.matterName, // Attach the matterName to each task
+            }));
+
+            // Use caseId as the key for grouping, and include matterName in the group object
+            if (!acc[caseItem._id]) {
+                acc[caseItem._id] = {
+                    matterName: caseItem.matterName, // Attach the matterName for display
+                    tasks: [] // Initialize the tasks array
+                };
+            }
+            acc[caseItem._id].tasks.push(...caseTasks);
+
+            return acc;
+        }, {});
+
+        return tasksGroupedByMatter;
+    } catch (error) {
+        throw new Error(error.message);
+    }
+};
+
+const getAllTasksAndUpdateOverdue = async () => {
+    try {
+        // Fetch all active cases and their tasks
+        const cases = await CaseModel.find({ status: { $ne: 'closed' } })
+            .populate('solicitorInCharge', 'username _id')
+            .populate('clerkInCharge', 'username _id')
+            .populate('category', 'categoryName _id')
+            .exec();
+
+        const currentLocalTime = moment().tz(localTimeZone); // Get current time in the local time zone
+
+        // Loop through cases and update overdue tasks
+        for (const caseItem of cases) {
+            let isCaseModified = false; // Track whether the case document is modified
+
+            for (const task of caseItem.tasks) {
+                const taskDueDateLocal = moment(task.dueDate).tz(localTimeZone); // Convert task due date to local time
+
+                if (
+                    task.status !== 'Overdue' && // Task is not already marked as overdue
+                    task.dueDate && // Task has a due date
+                    taskDueDateLocal.isBefore(currentLocalTime) // Task's due date is before the current local time
+                ) {
+                    task.status = 'Overdue'; // Update task status to overdue
+                    isCaseModified = true; // Mark case as modified
+                }
+            }
+
+            // Save the case only if it has been modified
+            if (isCaseModified) {
+                await caseItem.save();
+            }
+        }
+
+        console.log('All overdue tasks have been updated.');
+    } catch (error) {
+        console.error('Error updating overdue tasks:', error.message);
+    }
+};
+
+
 
 
 
@@ -563,6 +645,19 @@ const sendUpdateDetailEmail = async (caseId) => {
             .populate('category', 'categoryName _id')
             .exec();
 
+        // Fetch all admin users
+        const adminUsers = await userService.getAdminList();
+        const adminEmails = adminUsers.map(admin => admin.email);
+        const normalizeEmail = (email) => email?.toLowerCase().trim();
+        const usersNotifiedSet = new Set(
+            [
+                caseItem.solicitorInCharge?.email,
+                caseItem.clerkInCharge?.email,
+                ...adminEmails
+            ].map(normalizeEmail)
+        );
+        const usersNotified = Array.from(usersNotifiedSet).filter(Boolean);
+
         // Send email to solicitorInCharge and clerkInCharge
         const transporter = nodemailer.createTransport({
             service: 'gmail',
@@ -575,11 +670,11 @@ const sendUpdateDetailEmail = async (caseId) => {
         const caseDetailsUrl = `${process.env.FRONTEND_URL}/cases/details/${caseId}`;
         console.log('caseDetailsUrl:', caseDetailsUrl);
         console.log(process.env.EMAIL_USER);
-        console.log(`${caseItem.solicitorInCharge.email}, ${caseItem.clerkInCharge.email}`);
+        console.log(usersNotified.join(', '));
 
         const mailOptions = {
             from: process.env.EMAIL_USER,
-            to: `${caseItem.solicitorInCharge.email}, ${caseItem.clerkInCharge.email}`,
+            to: usersNotified.join(', '),
             subject: 'Case Details Updated (Legal Information System)',
             html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
@@ -641,6 +736,19 @@ const sendCaseClosedEmail = async (caseId) => {
             .populate('category', 'categoryName _id')
             .exec();
 
+        // Fetch all admin users
+        const adminUsers = await userService.getAdminList();
+        const adminEmails = adminUsers.map(admin => admin.email);
+        const normalizeEmail = (email) => email?.toLowerCase().trim();
+        const usersNotifiedSet = new Set(
+            [
+                caseItem.solicitorInCharge?.email,
+                caseItem.clerkInCharge?.email,
+                ...adminEmails
+            ].map(normalizeEmail)
+        );
+        const usersNotified = Array.from(usersNotifiedSet).filter(Boolean);
+
         // Send email to solicitorInCharge and clerkInCharge
         const transporter = nodemailer.createTransport({
             service: 'gmail',
@@ -653,11 +761,11 @@ const sendCaseClosedEmail = async (caseId) => {
         const caseDetailsUrl = `${process.env.FRONTEND_URL}/cases/details/${caseId}`;
         console.log('caseDetailsUrl:', caseDetailsUrl);
         console.log(process.env.EMAIL_USER);
-        console.log(`${caseItem.solicitorInCharge.email}, ${caseItem.clerkInCharge.email}`);
+        console.log(usersNotified.join(', '));
 
         const mailOptions = {
             from: process.env.EMAIL_USER,
-            to: `${caseItem.solicitorInCharge.email}, ${caseItem.clerkInCharge.email}`,
+            to: usersNotified.join(', '),
             subject: `Case Closed (Legal Information System)`,
             html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
@@ -719,6 +827,19 @@ const sendDeadlineEmail = async (caseId, task) => {
             .populate('category', 'categoryName _id')
             .exec();
 
+        // Fetch all admin users
+        const adminUsers = await userService.getAdminList();
+        const adminEmails = adminUsers.map(admin => admin.email);
+        const normalizeEmail = (email) => email?.toLowerCase().trim();
+        const usersNotifiedSet = new Set(
+            [
+                caseItem.solicitorInCharge?.email,
+                caseItem.clerkInCharge?.email,
+                ...adminEmails
+            ].map(normalizeEmail)
+        );
+        const usersNotified = Array.from(usersNotifiedSet).filter(Boolean);
+
         const transporter = nodemailer.createTransport({
             service: 'gmail',
             auth: {
@@ -731,7 +852,7 @@ const sendDeadlineEmail = async (caseId, task) => {
 
         const mailOptions = {
             from: process.env.EMAIL_USER,
-            to: `${caseItem.solicitorInCharge.email}, ${caseItem.clerkInCharge.email}`,
+            to: usersNotified.join(', '),
             subject: `Task Deadline Reminder (Legal Information System)`,
             html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
@@ -793,6 +914,19 @@ const sendReminderEmail = async (caseId, task) => {
             .populate('category', 'categoryName _id')
             .exec();
 
+        // Fetch all admin users
+        const adminUsers = await userService.getAdminList();
+        const adminEmails = adminUsers.map(admin => admin.email);
+        const normalizeEmail = (email) => email?.toLowerCase().trim();
+        const usersNotifiedSet = new Set(
+            [
+                caseItem.solicitorInCharge?.email,
+                caseItem.clerkInCharge?.email,
+                ...adminEmails
+            ].map(normalizeEmail)
+        );
+        const usersNotified = Array.from(usersNotifiedSet).filter(Boolean);
+
         const transporter = nodemailer.createTransport({
             service: 'gmail',
             auth: {
@@ -805,7 +939,7 @@ const sendReminderEmail = async (caseId, task) => {
 
         const mailOptions = {
             from: process.env.EMAIL_USER,
-            to: `${caseItem.solicitorInCharge.email}, ${caseItem.clerkInCharge.email}`,
+            to: usersNotified.join(', '),
             subject: `Task Deadline Reminder (Legal Information System)`,
             html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
@@ -868,6 +1002,7 @@ module.exports = {
     addTask,
     updateTask,
     getTasksByStaff,
+    getAllTasks,
     deleteTask,
     addLog,
     editLog,
@@ -877,5 +1012,5 @@ module.exports = {
     sendCaseClosedEmail,
     sendDeadlineEmail,
     sendReminderEmail,
-
+    getAllTasksAndUpdateOverdue,
 };

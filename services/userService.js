@@ -169,6 +169,11 @@ const getUserList = async () => {
     return UserModel.find({}, { _id: 1, username: 1, email: 1, role: 1, phone: 1, ic: 1 });
 };
 
+// get list of users with role of admin
+const getAdminList = async () => {
+    return UserModel.find({ role: 'admin' }, { _id: 1, username: 1, email: 1, role: 1 });
+};
+
 const updateRole = async (userId, role) => {
     const user = await UserModel.findById(userId);
     if (!user) {
@@ -349,6 +354,7 @@ module.exports = {
     blacklistToken,
     changePassword,
     getUserList,
+    getAdminList,
     updateRole,
     deleteUser,
     generatePasswordResetToken,

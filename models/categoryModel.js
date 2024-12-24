@@ -14,6 +14,16 @@ const categorySchema = new Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Field'
     }],
+    fieldOrders: [{
+        fieldId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Field'
+        },
+        order: {
+            type: Number,
+            required: true
+        }
+    }],
     tasks: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Task'

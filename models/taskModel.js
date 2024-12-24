@@ -25,7 +25,8 @@ const taskSchema = new Schema({
     },
     status: {
         type: String,
-        default: 'Awaiting Initiation'
+        default: 'Awaiting Initiation' 
+        // 'Awaiting Initiation', 'Pending', 'Completed', 'Overdue', 'On Hold'
     },
     order: {
         type: Number,
