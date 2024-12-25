@@ -20,9 +20,9 @@ const notificationSettingRoutes = require('./routes/notificationSettingRoutes');
 
 const { initializeCronJob } = require('./cron/cronJobs');
 
-const allowedOrigins = process.env.NODE_ENV === 'production'
-  ? ['https://lis-frontend-ten.vercel.app'] // Production frontend URL
-  : ['http://localhost:5173', 'http://localhost:5174']; // Local development URLs
+const allowedOrigins = ['http://localhost:5173', 'http://localhost:5174']; 
+
+console.log("NODE_ENV: ", process.env.NODE_ENV);
 
 //express app
 const cors = require('cors');
