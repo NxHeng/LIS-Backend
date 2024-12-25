@@ -1,4 +1,4 @@
-const NotificationSettingModel = require('../models/NotificationSettingModel');
+const NotificationSettingModel = require('../models/notificationSettingModel');
 
 // Fetch all settings
 const getAllSettings = async () => {
