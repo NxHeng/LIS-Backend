@@ -2,7 +2,7 @@ const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
-const UserModel = require('../models/userModel');
+const UserModel = require('../models/UserModel');
 const TokenBlacklist = require('../models/tokenBlacklist');
 
 const createStaff = async (username, email, password) => {
