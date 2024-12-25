@@ -21,8 +21,8 @@ const notificationSettingRoutes = require('./routes/notificationSettingRoutes');
 const { initializeCronJob } = require('./cron/cronJobs');
 
 const allowedOrigins = process.env.NODE_ENV === 'production'
-  ? [process.env.FRONTEND_URL] // Production frontend URL from .env
-  : ['http://localhost:5173', 'http://localhost:5174']; // Local development URLs
+    ? [process.env.FRONTEND_URL] // Production frontend URL from .env
+    : ['http://localhost:5173', 'http://localhost:5174']; // Local development URLs
 
 console.log("NODE_ENV: ", process.env.NODE_ENV);
 
@@ -33,9 +33,10 @@ const server = http.createServer(app);
 const io = socketIo(server, {
     cors: {
         origin: allowedOrigins,
-        methods: ['GET', 'POST'],
-        // credentials: true
+        methods: ['GET', 'POST', 'HEAD', 'OPTIONS', 'PUT', 'DELETE', 'PATCH'],
+        allowedHeaders: ['Content-Type','Authorization','Content-Disposition'],
         transports: ['websocket', 'polling'],
+        credentials: true
     }
 });
 
@@ -44,6 +45,7 @@ const io = socketIo(server, {
 app.use(cors());
 app.use(express.json());
 app.use((req, res, next) => {
+    console.log(res.getHeaders());
     console.log(req.path, req.method);
     req.io = io;
     next();
@@ -75,7 +77,7 @@ mongoose.connect(process.env.MONGO_URI)
         console.log('Connected to db');
         //listen for requests
         server.listen(process.env.PORT, () => {
-            console.log('Server is running on port 5000');
+            console.log(`Server is running on port ${process.env.PORT}`);
         });
     })
     .catch((err) => {
