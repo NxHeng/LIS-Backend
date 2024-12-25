@@ -5,7 +5,6 @@ const { Storage } = require('@google-cloud/storage');
 require('dotenv').config();
 const { v4: uuidv4 } = require('uuid');
 
-
 // Configure Multer to upload files to the local filesystem
 // const storage = multer.diskStorage({
 //     destination: (req, file, cb) => {
@@ -30,13 +29,12 @@ const { v4: uuidv4 } = require('uuid');
 
 // Configure Google Cloud Storage client
 const storage = new Storage({
-    keyFilename: path.resolve(__dirname, '../', process.env.GOOGLE_KEY_FILENAME), // Path to your service account JSON file
-    projectId: process.env.GOOGLE_PROJECT_ID, // Your Google Cloud project ID
+    // keyFilename: path.resolve(__dirname, '../', process.env.GOOGLE_KEY_FILENAME), 
+    keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS,
+    projectId: process.env.GOOGLE_PROJECT_ID, 
 });
 
-console.log(path.resolve(__dirname, '../', process.env.GOOGLE_KEY_FILENAME));
-
-const bucketName = process.env.BUCKET_NAME; // Replace with your bucket name
+const bucketName = process.env.BUCKET_NAME; 
 const bucket = storage.bucket(bucketName);
 
 // Multer memory storage to hold the file temporarily
