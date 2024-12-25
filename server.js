@@ -33,6 +33,7 @@ const io = socketIo(server, {
         origin: allowedOrigins,
         methods: ['GET', 'POST'],
         // credentials: true
+        transports: ['websocket', 'polling'],
     }
 });
 
