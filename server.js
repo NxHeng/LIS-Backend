@@ -20,7 +20,9 @@ const notificationSettingRoutes = require('./routes/notificationSettingRoutes');
 
 const { initializeCronJob } = require('./cron/cronJobs');
 
-const allowedOrigins = ['http://localhost:5173', 'http://localhost:5174']; 
+const allowedOrigins = process.env.NODE_ENV === 'production'
+  ? [process.env.FRONTEND_URL] // Production frontend URL from .env
+  : ['http://localhost:5173', 'http://localhost:5174']; // Local development URLs
 
 console.log("NODE_ENV: ", process.env.NODE_ENV);
 
