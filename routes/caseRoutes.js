@@ -16,25 +16,26 @@ const {
     editLog,
     deleteLog
 } = require('../controllers/caseController');
+const authMiddleware = require('../middlewares/authMiddleware');
 
 const router = express.Router();
 
 //Case Routes
-router.get('/getCases', getCases);
-router.get('/getMyCases/:id', getMyCases);
-router.get('/getCasesByClient/:ic', getCasesByClient);
-router.get('/getCase/:id', getCase);
-router.post('/createCase', createCase);
-router.post('/addTask/:caseId', addTask);
-router.patch('/updateTask/:caseId/:taskId', updateTask);
-router.patch('/updateTasksOrder/:caseId', updateTasksOrder);
-router.get('/getTasksByStaff/:id', getTasksByStaff);
-router.get('/getAllTasks', getAllTasks);
-router.delete('/deleteTask/:caseId/:taskId', deleteTask);
-router.patch('/updateCase/:id', updateCase);
-router.post('/addLog/:caseId', addLog);
-router.patch('/editLog/:caseId/:logId', editLog);
-router.delete('/deleteLog/:caseId/:logId', deleteLog);
+router.get('/getCases', authMiddleware, getCases);
+router.get('/getMyCases/:id', authMiddleware, getMyCases);
+router.get('/getCasesByClient/:ic', authMiddleware, getCasesByClient);
+router.get('/getCase/:id', authMiddleware, getCase);
+router.post('/createCase', authMiddleware, createCase);
+router.post('/addTask/:caseId', authMiddleware, addTask);
+router.patch('/updateTask/:caseId/:taskId', authMiddleware, updateTask);
+router.patch('/updateTasksOrder/:caseId', authMiddleware, updateTasksOrder);
+router.get('/getTasksByStaff/:id', authMiddleware, getTasksByStaff);
+router.get('/getAllTasks', authMiddleware, getAllTasks);
+router.delete('/deleteTask/:caseId/:taskId', authMiddleware, deleteTask);
+router.patch('/updateCase/:id', authMiddleware, updateCase);
+router.post('/addLog/:caseId', authMiddleware, addLog);
+router.patch('/editLog/:caseId/:logId', authMiddleware, editLog);
+router.delete('/deleteLog/:caseId/:logId', authMiddleware, deleteLog);
 
 // router.delete('/deleteCase/:id', );
 module.exports = router;
